@@ -1,0 +1,385 @@
+/* ============================================
+   📦 UNIVERSAL DASHBOARD TABLE STYLES
+   ============================================ */
+
+/* Table Container */
+.table-container {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    overflow: auto;
+    max-height: 80vh;
+    position: relative;
+    background: #fff;
+    border-radius: 6px;
+}
+
+/* Fix vertical alignment for headers and cells */
+.data-table th,
+.data-table td {
+    vertical-align: middle;
+    text-align: left;
+}
+
+/* Make sort icon inline with header text */
+.data-table th .sort-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+/* ============================================
+   🧭 SORT ICON BEHAVIOR
+   ============================================ */
+
+/* Default: hide sort icons */
+.sort-icon {
+    display: none;
+    margin-left: 4px;
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+/* Show arrow only when sorted */
+.header-cell.sort-asc .sort-icon::after {
+    content: "▲";
+    display: inline-block;
+    color: #007bff;
+    transition: opacity 0.2s ease;
+}
+
+.header-cell.sort-desc .sort-icon::after {
+    content: "▼";
+    display: inline-block;
+    color: #007bff;
+    transition: opacity 0.2s ease;
+}
+
+/* ============================================
+   🧭 MODERN TABLE CONTROLS
+   ============================================ */
+.table-controls.modern-controls {
+    top: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    background: #f0f2f5;
+    padding: 10px 15px;
+    min-width: 100%;
+}
+
+/* Optional: Make horizontal scroll smooth */
+.table-wrapper {
+    overflow-x: auto;
+    scroll-behavior: smooth;
+}
+
+/* Default Table Controls (fallback) */
+.table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: #f0f2f5;
+    border-bottom: 1px solid #ddd;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+/* Right Controls */
+.right-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Search Group */
+.search-group-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Buttons & Inputs */
+.search-options-button {
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+    padding: 8px 12px;
+    border-radius: 4px 0 0 4px;
+    cursor: pointer;
+    height: 38px;
+}
+
+.redesigned-search-input {
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    width: 300px;
+    height: 38px;
+    transition: all 0.2s;
+}
+
+.redesigned-search-input:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+.go-button {
+    padding: 8px 15px;
+    border: 1px solid #ccc;
+    border-left: none;
+    cursor: pointer;
+    background: #fff;
+    height: 38px;
+    transition: all 0.2s;
+}
+
+.go-button:hover {
+    background-color: #e9ecef;
+}
+
+.actions-button,
+.reset-button {
+    padding: 8px 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #fff;
+    font-weight: 600;
+}
+
+/* ============================================
+   🧾 DATA TABLE BASE STYLING
+   ============================================ */
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 1800px;
+}
+
+/* Headers */
+.header-row {
+    background: #fff;
+    border-bottom: 2px solid #ddd;
+}
+
+.header-cell {
+    text-align: center;
+    padding: 10px 12px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    user-select: none;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    white-space: nowrap;
+}
+
+/* Data Rows */
+.data-row {
+    border-bottom: 1px solid #eee;
+    transition: background 0.2s;
+}
+
+.data-row:hover {
+    background: #f9f9f9;
+}
+
+/* Data Cells */
+.data-cell {
+    padding: 8px 12px;
+    text-align: left;
+    color: #555;
+    vertical-align: middle;
+    min-height: 45px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+/* For long address columns */
+.data-cell[data-column="shipperAddress"],
+.data-cell[data-column="consigneeAddress"] {
+    max-width: 250px;
+}
+
+/* Flexible row height */
+.data-table tr {
+    height: auto !important;
+}
+
+/* ============================================
+   📊 SCROLLBAR STYLING
+   ============================================ */
+.table-container::-webkit-scrollbar {
+    height: 8px;
+}
+.table-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+.table-container::-webkit-scrollbar-track {
+    background: #f8f8f8;
+}
+
+/* ============================================
+   📑 TABLE FOOTER / PAGINATION
+   ============================================ */
+.table-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 12px;
+    background: #f7f7f7;
+    border-top: 1px solid #ddd;
+    position: sticky;
+    bottom: 0;
+}
+
+.total-count {
+    font-size: 12px;
+    color: #777;
+}
+
+/* Pagination */
+.pagination {
+    margin: 4px 0;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.pagination .page-item { margin: 0; }
+
+.pagination .page-link {
+    padding: 2px 6px !important;
+    font-size: 12px !important;
+    line-height: 1.2;
+    border-radius: 3px !important;
+    color: #007bff;
+    border: 1px solid #ddd;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #007bff !important;
+    border-color: #007bff !important;
+    color: #fff !important;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #aaa !important;
+    background-color: #f8f9fa !important;
+    border-color: #ddd !important;
+}
+
+/* ============================================
+   🔍 SEARCH MENU
+   ============================================ */
+.search-options-menu {
+    position: absolute;
+    top: 38px;
+    left: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 8px;
+    display: none;
+    z-index: 50;
+    border-radius: 0 0 4px 4px;
+}
+
+.search-options-menu.show-search-menu {
+    display: block;
+}
+
+.search-options-menu label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+/* ============================================
+   📱 RESPONSIVE OPTIMIZATION
+   ============================================ */
+@media (max-width: 768px) {
+    .table-controls.modern-controls {
+        padding: 6px 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        background: inherit;
+        flex-wrap: wrap;
+        position: relative !important;
+    }
+
+    .search-options-button,
+    .redesigned-search-input,
+    .go-button {
+        height: 32px;
+        font-size: 13px;
+        padding: 6px 8px;
+        border-radius: 4px;
+        background: inherit;
+        color: inherit;
+        flex-shrink: 1;
+    }
+
+    .redesigned-search-input {
+        width: 100%;
+        max-width: 180px;
+        box-sizing: border-box;
+    }
+
+    .search-options-menu {
+        top: 32px;
+        font-size: 13px;
+        max-height: 180px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .right-controls .btn,
+    .right-controls .actions-dropdown,
+    .reset-button {
+        height: 32px;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background: inherit;
+        color: inherit;
+        flex-shrink: 1;
+    }
+
+    .table-controls .search-group-container,
+    .table-controls .right-controls {
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .table-footer {
+        position: relative !important;
+        bottom: auto;
+        z-index: 5;
+    }
+
+    .header-row {
+        background-color: #f0f2f5;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .header-cell {
+        background-color: inherit;
+        text-align: left;
+        padding: 10px 12px;
+        font-weight: bold;
+        color: #333;
+        cursor: pointer;
+        user-select: none;
+    }
+}

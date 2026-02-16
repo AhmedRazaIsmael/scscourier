@@ -1,0 +1,14 @@
+/* Sidebar arrow icon (default state) */
+.menu-arrow::after {
+    content: '\f107'; /* Unicode for FontAwesome/Bootstrap down-arrow */
+    font-family: 'Font Awesome 5 Free', 'bootstrap-icons', 'Feather'; /* Pick whichever you're using */
+    font-weight: 900;
+    font-size: 0.75rem;
+    float: right;
+    transition: transform 0.3s ease;
+}
+
+/* Rotate arrow when expanded */
+.side-nav-link[aria-expanded="true"] .menu-arrow::after {
+    transform: rotate(180deg);
+}
