@@ -233,6 +233,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Scans
    Route::get('/scan/{type}', [ScanController::class, 'showScanForm'])->name('scan.form');
+   
+   
     // Financial
     Route::get('/shipment-cost', [FinancialController::class, 'shipmentCost'])->name('shipment.cost');
     Route::get('/shipment-cost/{bookNo}', [FinancialController::class, 'showCostDetail'])

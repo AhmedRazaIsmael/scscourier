@@ -1,16 +1,16 @@
 @php
-    // Default actions if not passed from page
-    $filterAction = $filterAction ?? url()->current();
-    $rowFilterAction = $rowFilterAction ?? url()->current();
-    $sortAction = $sortAction ?? url()->current();
-    $aggregateAction = $aggregateAction ?? url()->current();
-    $computeAction = $computeAction ?? url()->current();
-    $chartAction = $chartAction ?? url()->current();
-    $downloadAction = $downloadAction ?? url()->current();
-    $groupByAction = $groupByAction ?? url()->current();
-    $controlBreakAction = $controlBreakAction ?? url()->current();
-    $columns = $columns ?? [];
-    $chartModel = $chartModel ?? '';
+// Default actions if not passed from page
+$filterAction = $filterAction ?? url()->current();
+$rowFilterAction = $rowFilterAction ?? url()->current();
+$sortAction = $sortAction ?? url()->current();
+$aggregateAction = $aggregateAction ?? url()->current();
+$computeAction = $computeAction ?? url()->current();
+$chartAction = $chartAction ?? url()->current();
+$downloadAction = $downloadAction ?? url()->current();
+$groupByAction = $groupByAction ?? url()->current();
+$controlBreakAction = $controlBreakAction ?? url()->current();
+$columns = $columns ?? [];
+$chartModel = $chartModel ?? '';
 @endphp
 
 <!-- ✅ COLUMN FILTER MODAL -->
@@ -27,7 +27,7 @@
                     <select name="filter_column" class="form-select">
                         <option value="">-- Select --</option>
                         @foreach($columns as $col)
-                            <option value="{{ $col }}">{{ ucfirst(str_replace('_',' ',$col)) }}</option>
+                        <option value="{{ $col }}">{{ ucfirst(str_replace('_',' ',$col)) }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -82,13 +82,13 @@
             </div>
             <div class="modal-body">
                 @for($i=0;$i<3;$i++)
-                <div class="row mb-2">
+                    <div class="row mb-2">
                     <div class="col-1">{{ $i+1 }}</div>
                     <div class="col-6">
                         <select name="sort_columns[{{ $i }}][column]" class="form-select">
                             <option value="">-- Select Column --</option>
                             @foreach($columns as $col)
-                                <option value="{{ $col }}">{{ ucfirst($col) }}</option>
+                            <option value="{{ $col }}">{{ ucfirst($col) }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -98,15 +98,15 @@
                             <option value="desc">DESC</option>
                         </select>
                     </div>
-                </div>
-                @endfor
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">Apply</button>
-            </div>
-        </form>
+            @endfor
     </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Apply</button>
+    </div>
+    </form>
+</div>
 </div>
 
 <!-- ✅ AGGREGATE MODAL -->
@@ -129,7 +129,7 @@
                 <label>Column</label>
                 <select name="aggregate_column" class="form-select" required>
                     @foreach($columns as $col)
-                        <option value="{{ $col }}">{{ ucfirst($col) }}</option>
+                    <option value="{{ $col }}">{{ ucfirst($col) }}</option>
                     @endforeach
                 </select>
             </div>
@@ -155,7 +155,7 @@
                 <textarea class="form-control mb-3" name="compute_expression" placeholder="e.g., name . ' - ' . code"></textarea>
                 <div class="d-flex flex-wrap gap-2">
                     @foreach(['(', ')', '.', "'", '+', '-', '*', '/', ','] as $symbol)
-                        <button type="button" class="btn btn-sm btn-outline-dark" onclick="insertToExpression('{{ $symbol }}')">{{ $symbol }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-dark" onclick="insertToExpression('{{ $symbol }}')">{{ $symbol }}</button>
                     @endforeach
                 </div>
             </div>
@@ -180,13 +180,13 @@
                 <label>X-axis</label>
                 <select name="label" class="form-select mb-3">
                     @foreach($columns as $col)
-                        <option value="{{ $col }}">{{ ucfirst($col) }}</option>
+                    <option value="{{ $col }}">{{ ucfirst($col) }}</option>
                     @endforeach
                 </select>
                 <label>Y-axis</label>
                 <select name="value" class="form-select mb-3">
                     @foreach($columns as $col)
-                        <option value="{{ $col }}">{{ ucfirst($col) }}</option>
+                    <option value="{{ $col }}">{{ ucfirst($col) }}</option>
                     @endforeach
                 </select>
                 <label>Function</label>
@@ -213,30 +213,51 @@
 <!-- ✅ DOWNLOAD MODAL -->
 <div class="modal fade" id="downloadModal" tabindex="-1">
     <div class="modal-dialog">
-        <form method="GET" action="{{ $downloadAction }}" class="modal-content">
+        <form method="GET" action="{{ route('bookings.download') }}" class="modal-content">
+
             <div class="modal-header">
                 <h5 class="modal-title">Download</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+
             <div class="modal-body">
+
                 <label>Choose format</label>
+
                 <div class="d-flex gap-3 mb-3">
-                    @foreach(['csv'=>'CSV','xlsx'=>'Excel','html'=>'HTML'] as $ext=>$label)
-                        <div class="form-check">
-                            <input type="radio" class="form-check-input" name="format" value="{{ $ext }}" {{ $loop->first ? 'checked' : '' }}>
-                            <label class="form-check-label">{{ $label }}</label>
-                        </div>
-                    @endforeach
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" name="format" value="csv" checked>
+                        <label class="form-check-label">CSV</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" name="format" value="xlsx">
+                        <label class="form-check-label">Excel</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" name="format" value="html">
+                        <label class="form-check-label">HTML</label>
+                    </div>
                 </div>
+
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" name="data_only">
                     <label class="form-check-label">Data Only</label>
                 </div>
+
             </div>
+
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">Download</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+
+                <button type="submit" class="btn btn-primary">
+                    Download
+                </button>
             </div>
+
         </form>
     </div>
 </div>
