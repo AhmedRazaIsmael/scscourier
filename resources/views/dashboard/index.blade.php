@@ -9,32 +9,64 @@
         @php
             $cards = [
                 [
-                    'title' => 'Total Orders',
+                    'title' => 'TOTAL ORDERS',
                     'count' => $totalOrders,
                     'desc'  => $percentChange . '% higher than last week.',
-                    'color' => 'bg-danger', // Red card
+                    'color' => 'bg-primary', // Red card
                     'width' => $percentChange,
                 ],
                 [
-                    'title' => 'Inprocess Orders',
+                    'title' => 'OUT FOR DELIVERY',
                     'count' => $pendingOrders,
                     'desc'  => 'Orders waiting for delivery',
                     'color' => 'bg-primary', // Blue card
                     'width' => $totalOrders ? ($pendingOrders / $totalOrders) * 100 : 0,
                 ],
                 [
-                    'title' => 'Delivered Orders',
+                    'title' => 'IN TRANSIT',
                     'count' => $deliveredOrders,
                     'desc'  => 'Successfully delivered',
-                    'color' => 'bg-success', // Green card
+                    'color' => 'bg-info', // Green card
                     'width' => $totalOrders ? ($deliveredOrders / $totalOrders) * 100 : 0,
                 ],[
-                    'title' => 'Return Orders',
+                    'title' => 'AT DESTINATION WEARHOUSE',
                     'count' => $deliveredOrders,
                     'desc'  => 'Return',
                     'color' => 'bg-info', // Green card
                     'width' => $totalOrders ? ($deliveredOrders / $totalOrders) * 100 : 0,
+                ],   [
+                    'title' => 'RECIVED OFFICE',
+                    'count' => $totalOrders,
+                    'desc'  => $percentChange . '% higher than last week.',
+                    'color' => 'bg-primary', // Red card
+                    'width' => $percentChange,
                 ],
+                [
+                    'title' => 'DELIVERED',
+                    'count' => $pendingOrders,
+                    'desc'  => 'Orders waiting for delivery',
+                    'color' => 'bg-primary', // Blue card
+                    'width' => $totalOrders ? ($pendingOrders / $totalOrders) * 100 : 0,
+                ],
+                [
+                    'title' => 'RETURN CONFIRM',
+                    'count' => $deliveredOrders,
+                    'desc'  => 'Successfully delivered',
+                    'color' => 'bg-info', // Green card
+                    'width' => $totalOrders ? ($deliveredOrders / $totalOrders) * 100 : 0,
+                ],[
+                    'title' => 'RETURNED TO SHIPPER',
+                    'count' => $deliveredOrders,
+                    'desc'  => 'Return',
+                    'color' => 'bg-info', // Green card
+                    'width' => $totalOrders ? ($deliveredOrders / $totalOrders) * 100 : 0,
+                ],[
+                    'title' => 'SETTLED',
+                    'count' => $deliveredOrders,
+                    'desc'  => 'Return',
+                    'color' => 'bg-primary', // Green card
+                    'width' => $totalOrders ? ($deliveredOrders / $totalOrders) * 100 : 0,
+                ]
                 
             ];
         @endphp
