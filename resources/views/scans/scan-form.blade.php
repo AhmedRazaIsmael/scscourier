@@ -60,7 +60,8 @@
                                         </button>
                                     </div>
                                     <small class="text-muted">
-                                        Scanner se scan karein — automatically submit ho jayega. Multiple scans kar sakte hain.
+                                        <i class="bi bi-info-circle"></i>
+                                        Scan barcode or QR code — form will submit automatically. You can scan multiple items one by one.
                                     </small>
                                 </div>
                             </div>
