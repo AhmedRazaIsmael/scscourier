@@ -43,7 +43,7 @@
                             <div class="row gx-4 mb-3">
                                 <div class="col-md-12">
                                     <label for="bookNo" class="form-label fw-semibold">
-                                        <i class="bi bi-upc-scan me-1"></i> Scan or Enter Book No
+                                        <i class="bi bi-upc-scan me-1"></i> Scan and Enter Book No
                                         <span class="badge bg-success ms-2">
                                             <i class="bi bi-circle-fill me-1" style="font-size:8px;"></i>Scanner Ready
                                         </span>
@@ -212,7 +212,7 @@
 
     // Clear session list
     function clearSession() {
-        if (confirm('Session list clear ho jayegi. Confirm?')) {
+        if (confirm('Session list will be cleared. Confirm?')) {
             const url = new URL(window.location.href);
             url.searchParams.set('clearSession', '1');
             url.searchParams.delete('bookNo');
