@@ -16,6 +16,7 @@ use App\Http\Controllers\BookingStatusController;
 use App\Http\Controllers\ImportInvoiceController;
 use App\Http\Controllers\InvoiceRecoveryController;
 use App\Http\Controllers\DimensionalWeightController;
+use App\Http\Controllers\ShopifyAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +31,11 @@ Route::view('/login', 'login');
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+Route::get('/auth/shopify', [ShopifyAuthController::class, 'redirectToShopify']);
+Route::get('/auth/shopify/callback', [ShopifyAuthController::class, 'handleCallback'])
+    ->name('shopify.callback');
+
 
 // ----------------------
 // Authenticated Routes
