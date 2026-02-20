@@ -27,32 +27,46 @@ class ShopifyAuthController extends Controller
     }
 
         public function handleCallback(Request $request)
-    {
-        $shop = $request->shop;
-        $code = $request->code;
+        {
+            $shop = $request->shop;
+            $code = $request->code;
 
-        $response = Http::post("https://{$shop}/admin/oauth/access_token", [
-            'client_id' => config('services.shopify.key'),
-            'client_secret' => config('services.shopify.secret'),
-            'code' => $code,
-        ]);
+            if (!$shop || !$code) {
+                return response()->json(['error' => 'Invalid OAuth response'], 400);
+            }
 
-        $accessToken = $response['access_token'];
+            // Exchange code for access token
+            $response = Http::post("https://{$shop}/admin/oauth/access_token", [
+                'client_id' => config('services.shopify.key'),
+                'client_secret' => config('services.shopify.secret'),
+                'code' => $code,
+            ]);
 
-        // User must already be logged in (since they created account first)
-        $user = Auth::user();
+            if (!$response->successful()) {
+                return response()->json(['error' => 'Failed to retrieve access token'], 500);
+            }
 
-        // Prevent store hijacking
-        $existing = \App\Models\User::where('shop_domain', $shop)->first();
+            $accessToken = $response->json()['access_token'];
 
-        if ($existing && $existing->id !== $user->id) {
-            abort(403, 'Store already connected to another account.');
+            // OPTIONAL: Prevent duplicate shop linking
+            $existingUser = \App\Models\User::where('shop_domain', $shop)->first();
+
+            if ($existingUser) {
+                // If already linked, just update token (reinstall case)
+                $existingUser->shopify_access_token = $accessToken;
+                $existingUser->save();
+
+                return redirect("https://scs-green-pi.vercel.app/?shop={$shop}");
+            }
+
+            // Store temporarily in session for linking step
+            session([
+                'oauth_shop' => $shop,
+                'oauth_access_token' => $accessToken,
+            ]);
+
+            // Redirect back to React linking screen
+            return redirect("https://scs-green-pi.vercel.app/link-account?shop={$shop}");
         }
 
-        $user->shop_domain = $shop;
-        $user->shopify_access_token = $accessToken;
-        $user->save();
-
-        return redirect('/app'); // React embedded app route
-    }
 }
