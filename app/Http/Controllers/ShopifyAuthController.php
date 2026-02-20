@@ -66,7 +66,7 @@ class ShopifyAuthController extends Controller
             ]);
 
             // Redirect back to React linking screen
-            return redirect("https://scs-green-pi.vercel.app/link-account?shop={$shop}");
+            return redirect("https://scs-green-pi.vercel.app/?shop={$shop}");
         }
 
 }
