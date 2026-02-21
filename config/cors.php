@@ -15,13 +15,15 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'auth/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'auth/*', 'auth/shopify', 'auth/shopify/callback'],
 
     'allowed_methods' => ['*'],
 
     'allowed_origins' => ['https://scs-green-pi.vercel.app'],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '/^https:\/\/.*\.vercel\.app$/',
+    ],
 
     'allowed_headers' => ['*'],
 
