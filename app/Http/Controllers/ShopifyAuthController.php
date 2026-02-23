@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use App\Models\Shop;
 
 class ShopifyAuthController extends Controller
@@ -47,16 +47,47 @@ class ShopifyAuthController extends Controller
 
         public function handleCallback(Request $request)
         {
-            $shop = $request->shop;
-            $code = $request->code;
+            // 🔎 Log incoming request for debugging (optional but useful)
+            Log::info('Shopify OAuth Callback', $request->all());
 
-            if (!$shop || !$code) {
+            $shop = $request->query('shop');
+            $code = $request->query('code');
+            $hmac = $request->query('hmac');
+
+            // ✅ Basic validation
+            if (!$shop || !$code || !$hmac) {
                 return response()->json([
-                    'error' => 'Invalid OAuth response'
+                    'error' => 'Invalid OAuth response parameters'
                 ], 400);
             }
 
-            // 🔐 Exchange code for access token
+            /*
+            |--------------------------------------------------------------------------
+            | 🔐 Step 1 — Validate HMAC (VERY IMPORTANT)
+            |--------------------------------------------------------------------------
+            */
+            $queryParams = $request->query();
+            unset($queryParams['hmac']);
+
+            ksort($queryParams);
+
+            $calculatedHmac = hash_hmac(
+                'sha256',
+                urldecode(http_build_query($queryParams)),
+                config('services.shopify.secret')
+            );
+
+            if (!hash_equals($hmac, $calculatedHmac)) {
+                return response()->json([
+                    'error' => 'Invalid HMAC validation'
+                ], 403);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 🔁 Step 2 — Exchange Code For Access Token
+            |--------------------------------------------------------------------------
+            */
             $response = Http::post("https://{$shop}/admin/oauth/access_token", [
                 'client_id' => config('services.shopify.key'),
                 'client_secret' => config('services.shopify.secret'),
@@ -64,14 +95,29 @@ class ShopifyAuthController extends Controller
             ]);
 
             if (!$response->successful()) {
+                Log::error('Shopify token exchange failed', [
+                    'shop' => $shop,
+                    'response' => $response->body()
+                ]);
+
                 return response()->json([
-                    'error' => 'Failed to retrieve access token'
+                    'error' => 'Failed to retrieve access token from Shopify'
                 ], 500);
             }
 
-            $accessToken = $response->json()['access_token'];
+            $accessToken = $response->json()['access_token'] ?? null;
 
-            // 🏬 Store or update shop in DB
+            if (!$accessToken) {
+                return response()->json([
+                    'error' => 'Access token missing in Shopify response'
+                ], 500);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 🏬 Step 3 — Store or Update Shop Record
+            |--------------------------------------------------------------------------
+            */
             $shopRecord = Shop::updateOrCreate(
                 ['shop_domain' => $shop],
                 [
@@ -80,12 +126,11 @@ class ShopifyAuthController extends Controller
             );
 
             /*
-            If shop was already linked to a user,
-            we DO NOT unlink it.
-            We only update the token (reinstall case).
+            |--------------------------------------------------------------------------
+            | 🚀 Step 4 — Redirect Back To React App
+            |--------------------------------------------------------------------------
             */
 
-            // 🚀 Redirect back to React
             return redirect("https://scs-green-pi.vercel.app/?shop={$shop}");
         }
 
