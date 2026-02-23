@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Shop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Firebase\JWT\JWT;
@@ -109,10 +110,9 @@ class LoginController extends Controller
         }
 
         // 🏬 Step 3 — Get OAuth data from session
-        $oauthShop = session('oauth_shop');
-        $accessToken = session('oauth_access_token');
+        $shopRecord = Shop::where('shop_domain', $shop)->first();
 
-        if (!$oauthShop || !$accessToken || $oauthShop !== $shop) {
+        if (!$shopRecord) {
             return response()->json([
                 'status' => false,
                 'message' => 'OAuth not completed for this store'
