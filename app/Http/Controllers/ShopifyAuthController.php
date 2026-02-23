@@ -13,37 +13,35 @@ class ShopifyAuthController extends Controller
 
     //
 
-    public function redirectToShopify(Request $request)
-
-    {
-
-        $shop = $request->shop;
-
-        $scopes = env('SHOPIFY_API_SCOPES');
-
-        $redirectUri = route('shopify.callback');
-
-        $installUrl = "https://{$shop}/admin/oauth/authorize?" . http_build_query([
-
-            'client_id' => config('services.shopify.key'),
-
-            'scope' => $scopes,
-
-            'redirect_uri' => $redirectUri,
-
-        ]);
-
-        // App Bridge / SPA: return JSON so frontend can redirectToUrl() — avoids CORS (no fetch following 302)
-
-        if ($request->query('format') === 'json' || $request->wantsJson()) {
-
-            return response()->json(['redirectUrl' => $installUrl]);
-
+        public function redirectToShopify(Request $request)
+        {
+            $shop = $request->shop;
+            if (!$shop) {
+                return $request->wantsJson()
+                    ? response()->json(['error' => 'Missing shop'], 400)
+                    : redirect()->back();
+            }
+            $existingUser = \App\Models\User::where('shop_domain', $shop)->whereNotNull('shopify_access_token')->first();
+            $justCompletedOAuth = Cache::get('shopify_installed_' . $shop) === true;
+            if ($existingUser || $justCompletedOAuth) {
+                if ($request->query('format') === 'json' || $request->wantsJson()) {
+                    return response()->json(['alreadyInstalled' => true]);
+                }
+                return redirect("https://scs-green-pi.vercel.app/?shop={$shop}");
+            }
+            $scopes = env('SHOPIFY_API_SCOPES');
+            $redirectUri = route('shopify.callback');
+            $installUrl = "https://{$shop}/admin/oauth/authorize?" . http_build_query([
+                'client_id' => config('services.shopify.key'),
+                'scope' => $scopes,
+                'redirect_uri' => $redirectUri,
+            ]);
+            // App Bridge / SPA: return JSON so frontend can redirectToUrl() — avoids CORS (no fetch following 302)
+            if ($request->query('format') === 'json' || $request->wantsJson()) {
+                return response()->json(['redirectUrl' => $installUrl]);
+            }
+            return redirect($installUrl);
         }
-
-        return redirect($installUrl);
-
-    }
 
         public function handleCallback(Request $request)
         {
