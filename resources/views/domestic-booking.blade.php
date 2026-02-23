@@ -121,18 +121,34 @@
 
                                 <div class="col-md-4">
                                     <label class="form-label">Destination</label>
-                                    <select name="destination" class="form-select">
-                                        <option disabled selected>Choose...</option>
+                                    <select name="destination" id="destinationSelect" class="form-control">
+                                        <option value="">-- Select City --</option>
 
-                                        @foreach($cities as $city)
-                                        @if($city['city_name'] !== 'Karachi')
-                                        <option value="{{ $city['city_name'] }}">
-                                            {{ $city['city_name'] }}
-                                        </option>
-                                        @endif
-                                        @endforeach
+
+                                        <optgroup label="__ Tranzo City __">
+                                            @foreach($tranzoCities as $city)
+                                            <option value="{{ $city['city_name'] }}"
+                                                data-city-id=""
+                                                data-source="tranzo">
+                                                {{ $city['city_name'] }}
+                                            </option>
+                                            @endforeach
+                                        </optgroup>
+
+                                        <optgroup label="__ Trax City __">
+                                            @foreach($sonicCities as $city)
+                                            <option value="{{ $city['city_name'] }}"
+                                                data-city-id="{{ $city['id'] }}"
+                                                data-source="sonic">
+                                                {{ $city['city_name'] }}
+                                            </option>
+                                            @endforeach
+                                        </optgroup>
 
                                     </select>
+
+                                    <input type="hidden" name="consignee_city_id" id="consignee_city_id" value="">
+                                    <input type="hidden" name="destination_source" id="destination_source" value="">
                                 </div>
 
 
@@ -213,10 +229,10 @@
                                 </div>
                             </div>
 
-                
+
 
                             {{-- Shipper & Consignee --}}
-                             <!-- @foreach(['shipper', 'consignee'] as $type)
+                            <!-- @foreach(['shipper', 'consignee'] as $type)
                             <div class="row gx-4 mb-4">
                                 @foreach(['Company', 'Name', 'Number', 'Email'] as $field)
                                 <div class="col-md-6">
@@ -285,10 +301,10 @@
                                 </div>
                             </div> -->
 
-                            <div class="text-end">
-                                <button type="submit" class="btn btn-primary">{{ isset($booking) ? 'Update' : 'Submit' }}</button>
-                                <a href="{{ route('booking.index') }}" class="btn btn-outline-secondary">Cancel</a>
-                            </div>
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary">{{ isset($booking) ? 'Update' : 'Submit' }}</button>
+                                    <a href="{{ route('booking.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                                </div>
                         </form>
 
                     </div>
@@ -298,6 +314,15 @@
     </div>
 </div>
 @endsection
+@push('scripts')
+<script>
+    document.getElementById('destinationSelect').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        document.getElementById('consignee_city_id').value = selectedOption.getAttribute('data-city-id') || '';
+        document.getElementById('destination_source').value = selectedOption.getAttribute('data-source') || '';
+    });
+</script>
+@endpush
 <!-- @push('scripts')
 <script>
     window.addEventListener('DOMContentLoaded', function() {
