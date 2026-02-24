@@ -8,6 +8,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 class OrderController extends Controller
 {
@@ -525,45 +527,121 @@ class OrderController extends Controller
         return $cities;
     }
 
+    // public function getOrders(Request $request)
+    // {
+    //     $user = $request->get('auth_user');
+
+    //     $query = <<<GRAPHQL
+    //     {
+    //     orders(first: 20, query: "fulfillment_status:unfulfilled") {
+    //         edges {
+    //         node {
+    //             id
+    //             name
+    //             createdAt
+    //             totalPriceSet {
+    //             shopMoney {
+    //                 amount
+    //             }
+    //             }
+    //             shippingAddress {
+    //             name
+    //             address1
+    //             city
+    //             country
+    //             phone
+    //             }
+    //         }
+    //         }
+    //     }
+    //     }
+    //     GRAPHQL;
+
+    //     $response = Http::withHeaders([
+    //         'X-Shopify-Access-Token' => $user->shopify_access_token,
+    //         'Content-Type' => 'application/json'
+    //     ])->post("https://{$user->shop_domain}/admin/api/2024-01/graphql.json", [
+    //         'query' => $query
+    //     ]);
+
+    //     return $response->json();
+    // }
+
     public function getOrders(Request $request)
     {
-        $user = $request->get('auth_user');
+        // 🔐 Step 1 — Verify Shopify session token
+        $authHeader = $request->header('Authorization');
 
-        $query = <<<GRAPHQL
-        {
-        orders(first: 20, query: "fulfillment_status:unfulfilled") {
-            edges {
-            node {
-                id
-                name
-                createdAt
-                totalPriceSet {
-                shopMoney {
-                    amount
-                }
-                }
-                shippingAddress {
-                name
-                address1
-                city
-                country
-                phone
-                }
-            }
-            }
+        if (!$authHeader) {
+            return response()->json(['error' => 'Missing session token'], 401);
         }
-        }
-        GRAPHQL;
 
+        $jwt = str_replace('Bearer ', '', $authHeader);
+
+        try {
+            $decoded = JWT::decode(
+                $jwt,
+                new Key(config('services.shopify.secret'), 'HS256')
+            );
+
+            $shop = str_replace('https://', '', $decoded->dest);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Invalid session token'], 401);
+        }
+
+        // 🔎 Step 2 — Get user with this shop
+        $user = User::where('shop_domain', $shop)->first();
+
+        if (!$user || !$user->shopify_access_token) {
+            return response()->json([
+                'error' => 'Store not connected'
+            ], 400);
+        }
+
+        // 📦 Step 3 — Fetch Orders from Shopify
         $response = Http::withHeaders([
             'X-Shopify-Access-Token' => $user->shopify_access_token,
             'Content-Type' => 'application/json'
-        ])->post("https://{$user->shop_domain}/admin/api/2024-01/graphql.json", [
-            'query' => $query
+        ])->post("https://{$shop}/admin/api/2024-01/graphql.json", [
+            'query' => '
+            {
+              orders(first: 20, sortKey: CREATED_AT, reverse: true) {
+                edges {
+                  node {
+                    id
+                    name
+                    createdAt
+                    displayFinancialStatus
+                    displayFulfillmentStatus
+                    totalPriceSet {
+                      shopMoney {
+                        amount
+                        currencyCode
+                      }
+                    }
+                    customer {
+                      firstName
+                      lastName
+                      email
+                    }
+                  }
+                }
+              }
+            }
+            '
         ]);
 
-        return $response->json();
+        if (!$response->successful()) {
+            return response()->json([
+                'error' => 'Failed to fetch orders',
+                'details' => $response->body()
+            ], 500);
+        }
+
+        return response()->json($response->json());
     }
+
 
     public function pushOrders(Request $request)
     {
