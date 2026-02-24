@@ -109,7 +109,7 @@ class LoginController extends Controller
             ], 404);
         }
 
-        // 🏬 Step 3 — Get OAuth data from session
+        // 🏬 Step 3 — Get shop record from DB
         $shopRecord = Shop::where('shop_domain', $shop)->first();
 
         if (!$shopRecord) {
@@ -131,8 +131,12 @@ class LoginController extends Controller
 
         // 🔗 Step 4 — Link store to user
         $user->shop_domain = $shop;
-        $user->shopify_access_token = $accessToken;
+        $user->shopify_access_token = $shopRecord->shopify_access_token;
         $user->save();
+
+        // Also update shop record
+        $shopRecord->linked_user_id = $user->id;
+        $shopRecord->save();
 
         return response()->json([
             'status'  => true,
