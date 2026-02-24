@@ -46,7 +46,7 @@
                     <a href="#!"><i class="bi bi-window-sidebar"></i><span class="menu-text">Booking</span></a>
                     <ul class="treeview-menu">
                         @if(in_array('booking.domestic', $permissions))
-                            <li><a href="{{ url('/domestic-booking') }}">Singel Booking</a></li>
+                            <li><a href="{{ url('/domestic-booking') }}">Single Booking</a></li>
                         @endif
                         <!-- @if(in_array('booking.export', $permissions))
                             <li><a href="{{ url('/export-booking') }}">Export</a></li>
@@ -108,9 +108,9 @@
                 <li class="treeview">
                     <a href="#!"><i class="bi bi-shield-lock"></i><span class="menu-text">Operation</span></a>
                     <ul class="treeview-menu">
-                        @if(in_array('operation.3pl-booking', $permissions))
+                        <!-- @if(in_array('operation.3pl-booking', $permissions))
                             <li><a href="{{ url('/3pl-booking') }}">3PL Booking</a></li>
-                        @endif
+                        @endif -->
                         <!-- @if(in_array('operation.3pl-upload', $permissions))
                             <li><a href="{{ route('3pl.upload.step1') }}">3PL Bulk Upload</a></li>
                         @endif -->
