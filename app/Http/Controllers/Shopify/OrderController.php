@@ -620,6 +620,11 @@ class OrderController extends Controller
                         currencyCode
                       }
                     }
+                    customer {
+                      firstName
+                      lastName
+                      email
+                    }
                   }
                 }
               }
