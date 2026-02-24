@@ -76,7 +76,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/search-booking/set-columns', [BookingController::class, 'setColumns'])->name('booking.setColumns');
     Route::post('/new-booking', [BookingController::class, 'store'])->name('booking.store');
     Route::get('/tracking', [BookingController::class, 'getBookingByBookNo'])->name('booking.track');
+    Route::get('/tracking/sonic', [BookingController::class, 'trackSonic'])->name('booking.sonic.track');
     Route::get('/booking-status', [BookingController::class, 'bookingStatus'])->name('booking.status');
+    Route::get('/booking/sonic-status/{bookNo}', [BookingController::class, 'getSonicStatus'])->name('booking.sonic.status');
     Route::get('/domestic-booking', [BookingController::class, 'createDomestic'])->name('booking.domestic');
     Route::get('/export-booking', [BookingController::class, 'createExport'])->name('booking.export');
     Route::get('/import-booking', [BookingController::class, 'createImport'])->name('booking.import');

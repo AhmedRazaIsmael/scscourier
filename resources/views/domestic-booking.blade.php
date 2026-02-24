@@ -127,21 +127,28 @@
 
                                         <optgroup label="__ Tranzo City __">
                                             @foreach($tranzoCities as $city)
+                                            @if(strtolower($city['city_name']) !== 'karachi')
                                             <option value="{{ $city['city_name'] }}"
                                                 data-city-id=""
                                                 data-source="tranzo">
                                                 {{ $city['city_name'] }}
                                             </option>
+                                            @endif
                                             @endforeach
                                         </optgroup>
 
                                         <optgroup label="__ Trax City __">
+                                            @php
+                                            $tranzoCityNames = array_map('strtolower', array_column($tranzoCities, 'city_name'));
+                                            @endphp
                                             @foreach($sonicCities as $city)
+                                            @if(!in_array(strtolower($city['city_name']), $tranzoCityNames) && strtolower($city['city_name']) !== 'karachi')
                                             <option value="{{ $city['city_name'] }}"
                                                 data-city-id="{{ $city['id'] }}"
                                                 data-source="sonic">
                                                 {{ $city['city_name'] }}
                                             </option>
+                                            @endif
                                             @endforeach
                                         </optgroup>
 
