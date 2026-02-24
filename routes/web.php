@@ -76,7 +76,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/search-booking/set-columns', [BookingController::class, 'setColumns'])->name('booking.setColumns');
     Route::post('/new-booking', [BookingController::class, 'store'])->name('booking.store');
     Route::get('/tracking', [BookingController::class, 'getBookingByBookNo'])->name('booking.track');
+    Route::get('/tracking/sonic', [BookingController::class, 'trackSonic'])->name('booking.sonic.track');
     Route::get('/booking-status', [BookingController::class, 'bookingStatus'])->name('booking.status');
+    Route::get('/booking/sonic-status/{bookNo}', [BookingController::class, 'getSonicStatus'])->name('booking.sonic.status');
     Route::get('/domestic-booking', [BookingController::class, 'createDomestic'])->name('booking.domestic');
     Route::get('/export-booking', [BookingController::class, 'createExport'])->name('booking.export');
     Route::get('/import-booking', [BookingController::class, 'createImport'])->name('booking.import');
@@ -92,7 +94,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/cross-border/{id}/edit', [BookingController::class, 'editCrossBorder'])->name('booking.edit.crossborder');
     Route::get('/booking/type/edit/redirect/{bookNo}', [BookingController::class, 'editByBookNo'])->name('booking.type.edit.redirect');
     Route::get('/bookings/void', [BookingController::class, 'voidedBookings'])->name('booking.void.list');
-    Route::post('/booking/void-submit', [BookingController::class, 'submitVoid'])->name('booking.void.submit');
+    Route::post('/booking/void-submit', [BookingController::class, 'sub mitVoid'])->name('booking.void.submit');
     Route::get('/void-bookings', [BookingController::class, 'voidBookingsView'])->name('void.bookings');
     Route::post('/void-bookings/reset/{id}', [BookingController::class, 'resetVoid'])->name('voidBookings.reset');
 
@@ -122,9 +124,9 @@ Route::middleware(['auth'])->group(function () {
         return redirect()->route('wizard.bookings.step1');
     })->name('wizard.bookings.cancel');
     Route::get('wizard/bookings/sample-csv', [BookingController::class, 'downloadSampleCsv'])
-    ->name('wizard.bookings.sample');
+        ->name('wizard.bookings.sample');
     Route::get('/pending/download', [BookingController::class, 'Pendingdownload'])
-    ->name('pending.download');
+        ->name('pending.download');
     // Booking Status Routes
     Route::get('/bookings/{id}/status', [BookingStatusController::class, 'edit'])->name('booking.status.edit');
     Route::post('/bookings/{id}/status', [BookingStatusController::class, 'update'])->name('booking.status.update');
@@ -132,7 +134,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/booking-status/filter', [BookingStatusController::class, 'filterByDate'])->name('booking.status.filterByDate');
     Route::post('/booking-status/update-by-date', [BookingStatusController::class, 'updateByDate'])->name('booking.status.updateByDate');
     Route::get('/bulk-booking-status', [BookingStatusController::class, 'editBookingStatusView'])->name('booking.status.editBookingStatusView');
-   Route::post('booking/status/update-selected', [BookingStatusController::class, 'updateSelected'])
+    Route::post('booking/status/update-selected', [BookingStatusController::class, 'updateSelected'])
         ->name('booking.status.updateSelected');
 
     // Invoicing Routes
@@ -143,15 +145,17 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/invoicing/import/{id}/print-pdf', [ImportInvoiceController::class, 'printPDF'])->name('invoice.import.print.pdf');
     Route::get('/customer-uninvoiced-import-bookings/{customer}', [ImportInvoiceController::class, 'getUninvoicedImportBookings']);
     Route::get('/invoicing/import/{id}/edit', [ImportInvoiceController::class, 'edit'])->name('invoice.import.edit');
-    Route::get('/invoicing', function () { return view('invoicing'); })->name('invoicing.index');
+    Route::get('/invoicing', function () {
+        return view('invoicing');
+    })->name('invoicing.index');
     Route::get('/uninvoiced-import', [InvoiceController::class, 'uninvoicedImport'])->name('invoice.uninvoiced.import');
     Route::get('/invoice/create/{bookNo}', [InvoiceController::class, 'createFromBooking'])
-     ->name('invoice.createFromBooking');
+        ->name('invoice.createFromBooking');
 
     Route::post('/invoice/store', [InvoiceController::class, 'storeFromBooking'])
-         ->name('invoice.storeFromBooking');
+        ->name('invoice.storeFromBooking');
 
-    
+
     Route::prefix('invoicing/import')->group(function () {
         Route::get('/create', [ImportInvoiceController::class, 'create'])->name('invoice.import.create');
         Route::post('/store', [ImportInvoiceController::class, 'store'])->name('invoice.import.store');
@@ -175,9 +179,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/invoicing/import/{id}/print', [ImportInvoiceController::class, 'print'])->name('invoice.import.print');
     Route::get('/customer-bookings/{customer}', [InvoiceController::class, 'getCustomerBookings']);
     Route::get('/customer-import-bookings/{customerId}', [ImportInvoiceController::class, 'getCustomerBookings'])
-     ->name('customer.import.bookings');
-     Route::get('/customer-export-bookings/{customerId}', [InvoiceController::class, 'getCustomerExportBookings'])
-    ->name('customer.export.bookings');
+        ->name('customer.import.bookings');
+    Route::get('/customer-export-bookings/{customerId}', [InvoiceController::class, 'getCustomerExportBookings'])
+        ->name('customer.export.bookings');
     // Recovery Ivoice
     Route::post('/invoicing/import/{id}/update-items', [ImportInvoiceController::class, 'updateItems'])->name('invoice.import.update.items');
     Route::get('/invoice-recovery', [InvoiceController::class, 'invoiceRecovery'])->name('invoice.recovery');
@@ -194,9 +198,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/pdo-bulk-label', [LabelController::class, 'bulkPODForm'])->name('label.bulk.form');
     Route::get('/api/pod-bookings', [LabelController::class, 'podBookingsJson'])->name('api.pod.bookings');
     Route::post('/bulk-pod-label', [LabelController::class, 'printBulkPODLabel'])->name('label.bulk.pod');
-   Route::get('/label/pod/single', [LabelController::class, 'searchSinglePOD'])->name('label.single.pod.form');
+    Route::get('/label/pod/single', [LabelController::class, 'searchSinglePOD'])->name('label.single.pod.form');
 
-// Generate PDF
+    // Generate PDF
     Route::get('/label/pod/single/generate', [LabelController::class, 'printSinglePOD'])->name('label.single.pod.generate');
     Route::post('/label/pod/single/generate', [LabelController::class, 'generateSinglePOD'])->name('label.single.pod.generate');
     Route::get('/sales-funnel', [LabelController::class, 'salesFunnel'])->name('sales.funnel');
@@ -207,7 +211,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/bulk-aggregate', [LabelController::class, 'bulkAggregate'])->name('bulk.aggregate');
     Route::post('/bulk-compute', [LabelController::class, 'bulkCompute'])->name('bulk.compute');
     Route::get('/bulk-chart', [LabelController::class, 'bulkChart'])->name('bulk.chart');
-    Route::match(['get','post'],'/bulk-download', [LabelController::class, 'bulkDownload'])->name('bulk.download');
+    Route::match(['get', 'post'], '/bulk-download', [LabelController::class, 'bulkDownload'])->name('bulk.download');
     Route::get('/charts/{model}', [ChartController::class, 'universalChart'])->name('charts.universal');
     Route::get('/shipment-sale', [InvoiceController::class, 'allBookings'])
         ->name('shipment.sale');
@@ -223,7 +227,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/3pl/upload/map', [OperationController::class, 'validateMapping'])->name('3pl.upload.step2');
     Route::post('/3pl/upload/final', [OperationController::class, 'uploadFinal'])->name('3pl.upload.final');
     Route::match(['get', 'post'], '/3pl/filter', [OperationController::class, 'create'])->name('thirdparty.filter');
-    Route::match(['get','post'],'/3pl/row-filter', [OperationController::class, 'rowFilter'])->name('thirdparty.rowFilter');
+    Route::match(['get', 'post'], '/3pl/row-filter', [OperationController::class, 'rowFilter'])->name('thirdparty.rowFilter');
     Route::post('/3pl/compute', [OperationController::class, 'compute'])->name('thirdparty.compute');
     Route::match(['get', 'post'], '/3pl/aggregate', [OperationController::class, 'aggregate'])->name('thirdparty.aggregate');
     Route::match(['get', 'post'], '/3pl/chart', [OperationController::class, 'chart'])->name('thirdparty.chart');
@@ -233,18 +237,18 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/thirdparty/rows-per-page', [OperationController::class, 'setRowsPerPage'])->name('thirdparty.rowsPerPage');
     Route::post('/thirdparty/settings', [OperationController::class, 'settings'])->name('thirdparty.settings');
     Route::get('3pl/upload/sample-csv', [OperationController::class, 'downloadSampleCsv'])
-    ->name('3pl.upload.sample');
+        ->name('3pl.upload.sample');
 
 
 
     // Scans
-   Route::get('/scan/{type}', [ScanController::class, 'showScanForm'])->name('scan.form');
-   
-   
+    Route::get('/scan/{type}', [ScanController::class, 'showScanForm'])->name('scan.form');
+
+
     // Financial
     Route::get('/shipment-cost', [FinancialController::class, 'shipmentCost'])->name('shipment.cost');
     Route::get('/shipment-cost/{bookNo}', [FinancialController::class, 'showCostDetail'])
-    ->name('shipment.cost.detail');
+        ->name('shipment.cost.detail');
 
     // Save new costing entry
     Route::post('/shipment-cost/store', [FinancialController::class, 'storeCost'])
@@ -261,7 +265,7 @@ Route::middleware(['auth'])->group(function () {
     // Delete costing entry
     Route::delete('/shipment-cost/delete/{id}', [FinancialController::class, 'deleteCost'])
         ->name('shipment.cost.delete');
-    Route::get('financial/dashboard', [FinancialController::class,'dashboard'])->name('financial.dashboard');
+    Route::get('financial/dashboard', [FinancialController::class, 'dashboard'])->name('financial.dashboard');
     // Manifest
     Route::get('/manifest-pl', [ManifestController::class, 'manifestPL'])->name('manifest.pl');
 
@@ -282,9 +286,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/users/compute', [UserController::class, 'compute'])->name('users.compute');
     Route::get('/users/download', [UserController::class, 'download'])->name('users.download');
     Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
-    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');  
+    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
     Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
-    
+
 
     // Master Setup
     Route::prefix('master')->group(function () {
@@ -306,10 +310,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/customer/download/{format}', [MasterController::class, 'downloadCustomer'])->name('customer.download');
         Route::get('booking/attachments', [MasterController::class, 'bookingAttachments'])
             ->name('booking.attachments');
-            
+
         Route::get('booking/attachments/download/{id}', [MasterController::class, 'downloadBookingAttachment'])
             ->name('booking.attachments.download');
-            
     });
 
     // AJAX
@@ -320,7 +323,4 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/city/chart', [MasterController::class, 'chart'])->name('city.chart');
     Route::post('/cities/columns', [MasterController::class, 'setColumns'])->name('city.columns');
     Route::get('/get-cities-by-country/{country_id}', [MasterController::class, 'getCitiesByCountry'])->name('ajax.getCitiesByCountry');
-    
-
 });
-

@@ -35,53 +35,53 @@ class BookingController extends Controller
     {
         // 1️⃣ Validate input
         $validated = $request->validate([
-            'customer_id'         => 'required|exists:customers,id',
-            'bookingType'         => 'required|in:domestic,export,import,cross_border',
-            'service'             => 'nullable|in:overnight,overnet',
-            'bookChannel'         => 'nullable|in:facebook,whatsapp,instagram,others',
-            'paymentMode'         => 'nullable|in:cod,non_cod',
-            'origin'              => 'nullable',
-            'originCountry'       => 'nullable',
-            'destination'         => 'nullable',
-            'destinationCountry'  => 'nullable',
-            'postalCode'          => 'nullable',
-            'invoiceValue'        => 'nullable|numeric',
-            'weight'              => 'nullable|numeric',
-            'pieces'              => 'nullable|numeric',
-            'length'              => 'nullable|numeric',
-            'width'               => 'nullable|numeric',
-            'height'              => 'nullable|numeric',
-            'dimensionalWeight'   => 'nullable|numeric',
-            'orderNo'             => 'nullable',
-            'arrivalClearance'    => 'nullable|string',
-            'itemContent'         => 'nullable',
-            'itemDetail'          => 'nullable',
-            'shipperCompany'      => 'nullable',
-            'shipperName'         => 'nullable',
-            'shipperNumber'       => 'nullable',
-            'shipperEmail'        => 'nullable|email',
-            'shipperAddress'      => 'nullable',
-            'consigneeCompany'    => 'nullable',
-            'consigneeName'       => 'nullable',
-            'consigneeNumber'     => 'nullable',
-            'consigneeEmail'      => 'nullable|email',
-            'consigneeAddress'    => 'nullable',
-            'remarks'             => 'nullable',
-            'pickupInstructions'  => 'nullable',
+            'customer_id'          => 'required|exists:customers,id',
+            'bookingType'          => 'required|in:domestic,export,import,cross_border',
+            'service'              => 'nullable|in:overnight,overnet',
+            'bookChannel'          => 'nullable|in:facebook,whatsapp,instagram,others',
+            'paymentMode'          => 'nullable|in:cod,non_cod',
+            'origin'               => 'nullable',
+            'originCountry'        => 'nullable',
+            'destination'          => 'nullable',
+            'destinationCountry'   => 'nullable',
+            'postalCode'           => 'nullable',
+            'invoiceValue'         => 'nullable|numeric',
+            'weight'               => 'nullable|numeric',
+            'pieces'               => 'nullable|numeric',
+            'length'               => 'nullable|numeric',
+            'width'                => 'nullable|numeric',
+            'height'               => 'nullable|numeric',
+            'dimensionalWeight'    => 'nullable|numeric',
+            'orderNo'              => 'nullable',
+            'arrivalClearance'     => 'nullable|string',
+            'itemContent'          => 'nullable',
+            'itemDetail'           => 'nullable',
+            'shipperCompany'       => 'nullable',
+            'shipperName'          => 'nullable',
+            'shipperNumber'        => 'nullable',
+            'shipperEmail'         => 'nullable|email',
+            'shipperAddress'       => 'nullable',
+            'consigneeCompany'     => 'nullable',
+            'consigneeName'        => 'nullable',
+            'consigneeNumber'      => 'nullable',
+            'consigneeEmail'       => 'nullable|email',
+            'consigneeAddress'     => 'nullable',
+            'remarks'              => 'nullable',
+            'pickupInstructions'   => 'nullable',
             'deliveryInstructions' => 'nullable',
-            'codAmount'           => 'nullable|numeric',
-            'salesPerson'         => 'nullable|exists:users,id',
-            'territory'           => 'nullable|exists:users,id',
-            'rateType'            => 'nullable',
+            'codAmount'            => 'nullable|numeric',
+            'salesPerson'          => 'nullable|exists:users,id',
+            'territory'            => 'nullable|exists:users,id',
+            'rateType'             => 'nullable',
+            'consignee_city_id'    => 'nullable', // Sonic city id
         ]);
 
         if (isset($validated['arrivalClearance'])) {
             $mapping = [
-                'dr' => 'DR',
-                'console' => 'Console',
+                'dr'               => 'DR',
+                'console'          => 'Console',
                 'actual clearance' => 'Actual Clearance',
             ];
-
             $key = strtolower(trim($validated['arrivalClearance']));
             $validated['arrivalClearance'] = $mapping[$key] ?? $validated['arrivalClearance'];
         }
@@ -105,26 +105,163 @@ class BookingController extends Controller
                 break;
         }
 
-        // 3️⃣ Generate booking number: AB + YYYY + MM + Type + 4‑digit random
-        $prefix = 'AB';
-        $year   = date('y');
-        $month  = date('m');
-        $random = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
-        $bookNo = "{$prefix}{$year}{$month}{$typeCode}{$random}";
+        // 3️⃣ Generate booking number
+        $prefix  = 'AB';
+        $year    = date('y');
+        $month   = date('m');
+        $random  = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+        $bookNo  = "{$prefix}{$year}{$month}{$typeCode}{$random}";
 
+        // 4️⃣ Auto values
+        $validated['bookNo']      = $bookNo;
+        $validated['bookDate']    = now()->toDateString();
+        $validated['salesPerson'] = $request->input('territory', null);
 
+        // 5️⃣ Customer data fetch karo
+        $customer = \App\Models\Customer::find($validated['customer_id']);
 
-        // 3️⃣ Auto values
-        $validated['bookNo']   = $bookNo;
-        $validated['bookDate'] = now()->toDateString();
-        $validated['salesPerson'] = $request->input('territory', null); // ✅ fixed
-        // 4️⃣ Save
-        Booking::create($validated);
+        // 6️⃣ destination_source aur consignee_city_id ko validated se alag rakho
+        //    taake Booking::create() mein masla na ho
+        $destinationSource = $request->input('destination_source');
+        $consigneeCityId   = (int) $request->input('consignee_city_id', 0);
 
-        // 5️⃣ Response
+        // consignee_city_id validated mein hai to usse hata do booking save karne se pehle
+        $bookingData = $validated;
+        unset($bookingData['consignee_city_id']);
+
+        // 7️⃣ Save to DB
+        Booking::create($bookingData);
+
+        $sonicMessage  = '';
+        $tranzoMessage = '';
+
+        // ✅ Tranzo API Integration - sirf tab jab Tranzo city select ho aur COD ho
+        if ($destinationSource === 'tranzo' && ($validated['paymentMode'] ?? '') === 'cod') {
+
+            $tranzoPayload = [
+                'reference_number'     => $bookNo,
+                'order_details'        => $validated['itemDetail'] ?? '',
+                'customer_name'        => $customer->contact_person_1 ?? '',
+                'customer_phone'       => $customer->contact_no_1 ?? '',
+                'special_instructions' => $validated['remarks'] ?? '',
+                'pickup_address_code'  => 'TMLO',
+                'return_address_code'  => 'TMLO',
+                'destination_city'     => $validated['destination'] ?? '',
+                'delivery_address'     => $customer->address_1 ?? '',
+                'ds_shipment_type'     => 1,
+                'store_id'             => 1,
+                'cod_amount'           => (int)($validated['codAmount'] ?? 0),
+                'total_items'          => (int)($validated['pieces'] ?? 1),
+                'booking_weight'       => (float)($validated['weight'] ?? 1),
+                'customer_email'       => $customer->email_1 ?? '',
+            ];
+
+            $tranzoApiResponse = Http::withHeaders([
+                'Accept'       => 'application/json',
+                'Content-Type' => 'application/json',
+                'api-token'    => '09f4924c715a474385938f7fef946e04',
+            ])->post('https://api-integration.tranzo.pk/api/custom/v1/create-order/', $tranzoPayload);
+
+            $tranzoData = $tranzoApiResponse->json();
+
+            \Log::info('Tranzo API Response', [
+                'status_code' => $tranzoApiResponse->status(),
+                'payload'     => $tranzoPayload,
+                'response'    => $tranzoData,
+            ]);
+
+            if (isset($tranzoData['tracking_number'])) {
+                $tranzoTracking = $tranzoData['tracking_number'];
+                $tranzoMessage  = " | Tranzo Tracking: {$tranzoTracking}";
+
+                // ✅ ThirdPartyBooking table mein save karo
+                \App\Models\ThirdPartyBooking::create([
+                    'book_no'      => $bookNo,
+                    'book_date'    => $validated['bookDate'],
+                    'company_name' => 'Tranzo',
+                    'ref_no'       => $tranzoTracking,
+                    'remarks'      => 'Auto booked via Tranzo API',
+                    'updated_by'   => auth()->id() ?? null,
+                ]);
+            } else {
+                \Log::error('Tranzo API Error', ['payload' => $tranzoPayload, 'response' => $tranzoData]);
+                $tranzoMessage = ' | Tranzo Error: ' . ($tranzoData['message'] ?? 'Unknown');
+            }
+        }
+
+        // ✅ Sonic API Integration - sirf tab jab Sonic city select ho aur COD ho
+        if ($destinationSource === 'sonic' && $consigneeCityId > 0 && ($validated['paymentMode'] ?? '') === 'cod') {
+
+            $sonicPayload = [
+                'service_type_id'            => 1,
+                'pickup_address_id'          => 617025,
+                'information_display'        => 0,
+                'consignee_city_id'          => $consigneeCityId,
+                'consignee_name'             => $customer->contact_person_1 ?? '',
+                'consignee_address'          => $customer->address_1 ?? '',
+                'consignee_phone_number_1'   => $customer->contact_no_1 ?? '',
+                'order_id'                   => $bookNo,
+                'item_product_type_id'       => 1,
+                'item_description'           => $validated['itemDetail'] ?? '',
+                'item_quantity'              => (int)($validated['pieces'] ?? 1),
+                'item_insurance'             => 0,
+                'item_price'                 => (int)($validated['codAmount'] ?? 0),
+                'pickup_date'                => $validated['bookDate'],
+                'special_instructions'       => $validated['remarks'] ?? '',
+                'estimated_weight'           => (float)($validated['weight'] ?? 0),
+                'shipping_mode_id'           => 1,
+                'amount'                     => (int)($validated['codAmount'] ?? 0),
+                'parcel_value'               => (int)($validated['invoiceValue'] ?? 0),
+                'payment_mode_id'            => 1,
+                'charges_mode_id'            => 2,
+                'open_box'                   => 0,
+                'pieces_quantity'            => min(max((int)($validated['pieces'] ?? 1), 1), 10),
+                'shipper_reference_number_1' => $bookNo,
+            ];
+
+            if (!empty($customer->contact_no_2)) {
+                $sonicPayload['consignee_phone_number_2'] = $customer->contact_no_2;
+            }
+            if (!empty($customer->email_1)) {
+                $sonicPayload['consignee_email_address'] = $customer->email_1;
+            }
+
+            $sonicResponse = Http::withHeaders([
+                'Authorization' => 'aWNSR1VFYjBwcnhvRmp2T1RqRWpmOE9nMVNHNGdMVkc5aGp4VEdub29KYnF5WTdFajhKSHhrQ3Nlc214698b61c3af9b9',
+                'Content-Type'  => 'application/json',
+                'Accept'        => 'application/json',
+            ])->post('https://sonic.pk/api/shipment/book', $sonicPayload);
+
+            $sonicData = $sonicResponse->json();
+
+            \Log::info('Sonic API Response', [
+                'status_code' => $sonicResponse->status(),
+                'payload'     => $sonicPayload,
+                'response'    => $sonicData,
+            ]);
+
+            if (isset($sonicData['status']) && $sonicData['status'] == 0) {
+                $trackingNo   = $sonicData['tracking_number'] ?? 'N/A';
+                $sonicMessage = " | Sonic Tracking: {$trackingNo}";
+
+                // ✅ ThirdPartyBooking table mein save karo
+                \App\Models\ThirdPartyBooking::create([
+                    'book_no'      => $bookNo,
+                    'book_date'    => $validated['bookDate'],
+                    'company_name' => 'Sonic',
+                    'ref_no'       => $trackingNo,
+                    'remarks'      => 'Auto booked via Sonic API',
+                    'updated_by'   => auth()->id() ?? null,
+                ]);
+            } else {
+                \Log::error('Sonic API Error', ['payload' => $sonicPayload, 'response' => $sonicData]);
+                $sonicMessage = ' | Sonic Error: ' . ($sonicData['message'] ?? 'Unknown');
+            }
+        }
+
         return redirect()->back()->with(
             'success',
-            ucfirst($validated['bookingType']) . " booking created successfully. Your Booking No is: " . $bookNo
+            ucfirst($validated['bookingType']) . " booking created successfully. Booking No: {$bookNo}" . $tranzoMessage . $sonicMessage
         );
     }
 
@@ -146,33 +283,28 @@ class BookingController extends Controller
     {
         $bookNosInput = $request->input('book_no');
 
-        // 🔹 Split comma separated numbers
+        // Split comma separated numbers
         $bookNos = array_filter(array_map('trim', explode(',', $bookNosInput)));
 
-        // 🔹 Get bookings with relations
+        // Get bookings with relations
         $bookings = Booking::with(['statuses.user', 'customer'])
             ->whereIn('bookNo', $bookNos)
             ->get();
 
-        // 🔹 Get 3PL reference numbers
+        // Get 3PL reference numbers
         $thirdPartyBookings = ThirdPartyBooking::whereIn('book_no', $bookNos)
             ->pluck('ref_no', 'book_no')
             ->toArray();
 
-        // 🔹 Other data (agar kahin use ho)
-        $users = User::all();
+        $users     = User::all();
         $customers = Customer::all();
         $countries = Country::all();
 
         $pakistan = Country::where('name', 'Pakistan')->first();
+        $cities   = $pakistan
+            ? City::where('country_id', $pakistan->id)->get()
+            : collect();
 
-        if ($pakistan) {
-            $cities = City::where('country_id', $pakistan->id)->get();
-        } else {
-            $cities = collect();
-        }
-
-        // ✅ IMPORTANT — CORRECT VARIABLES PASS KARO
         return view('book-tracking', compact(
             'bookings',
             'thirdPartyBookings',
@@ -183,6 +315,28 @@ class BookingController extends Controller
         ));
     }
 
+    public function trackSonic(Request $request)
+    {
+        $trackingNumber = $request->input('tracking_number');
+
+        if (!$trackingNumber) {
+            return response()->json(['error' => 'Tracking number is required'], 400);
+        }
+
+        $response = Http::withHeaders([
+            'Accept'        => 'application/json',
+            'Authorization' => 'aWNSR1VFYjBwcnhvRmp2T1RqRWpmOE9nMVNHNGdMVkc5aGp4VEdub29KYnF5WTdFajhKSHhrQ3Nlc214698b61c3af9b9', // 🔹 Token yahan
+        ])->get('https://sonic.pk/api/shipment/track', [
+            'tracking_number' => $trackingNumber,
+            'type'            => 0,
+        ]);
+
+        if ($response->failed()) {
+            return response()->json(['error' => 'Failed to fetch tracking data from Sonic'], $response->status());
+        }
+
+        return response()->json($response->json());
+    }
 
     /**
      * Booking status page
@@ -193,6 +347,32 @@ class BookingController extends Controller
         return view('booking-status', compact('bookings'));
     }
 
+    public function getSonicStatus($bookNo)
+    {
+        try {
+            // ThirdPartyBooking mein book_no se ref_no nikalo
+            $thirdParty = \App\Models\ThirdPartyBooking::where('book_no', $bookNo)->first();
+
+            // Agar ref_no mila toh use karo warna original bookNo
+            $trackingNumber = ($thirdParty && $thirdParty->ref_no) ? $thirdParty->ref_no : $bookNo;
+
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'Accept'        => 'application/json',
+                'Authorization' => 'aWNSR1VFYjBwcnhvRmp2T1RqRWpmOE9nMVNHNGdMVkc5aGp4VEdub29KYnF5WTdFajhKSHhrQ3Nlc214698b61c3af9b9',
+            ])->get('https://sonic.pk/api/shipment/status', [
+                'tracking_number' => $trackingNumber,
+                'type'            => 0,
+            ]);
+
+            $data = $response->json();
+            $data['_used_tracking_no']  = $trackingNumber;
+            $data['_third_party_found'] = $thirdParty ? true : false;
+
+            return response()->json($data);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
     // public function createDomestic()
     // {
     //     $customers = Customer::all();
@@ -233,22 +413,65 @@ class BookingController extends Controller
 
     public function createDomestic()
     {
-
         $customers = Customer::all();
         $users     = User::all();
 
-        $response = Http::withHeaders([
-            'api-token'   => '09f4924c715a474385938f7fef946e04',
+        // Existing Tranzo API
+        $tranzoCities = [];
+        $tranzoResponse = Http::withHeaders([
+            'api-token'    => '09f4924c715a474385938f7fef946e04',
             'Content-Type' => 'application/json',
         ])->get('https://api-integration.tranzo.pk/api/custom/v1/get-operational-cities/');
 
-        if ($response->successful()) {
-            $cities = $response->json(); // API data
-        } else {
-            $cities = [];
+        if ($tranzoResponse->successful()) {
+            $tranzoCities = $tranzoResponse->json();
         }
 
-        return view('domestic-booking', compact('customers', 'users', 'cities'))
+        // New Sonic API
+        $sonicCities = [];
+        $sonicResponse = Http::withHeaders([
+            'Accept'        => 'application/json',
+            'Content-Type'  => 'application/json',
+            'Authorization' => 'aWNSR1VFYjBwcnhvRmp2T1RqRWpmOE9nMVNHNGdMVkc5aGp4VEdub29KYnF5WTdFajhKSHhrQ3Nlc214698b61c3af9b9',
+        ])->get('https://sonic.pk/api/cities');
+
+        if ($sonicResponse->successful()) {
+            $sonicData = $sonicResponse->json();
+            \Log::info('Sonic Cities Raw Response', ['data' => array_slice($sonicData, 0, 3)]); // pehle 3 records log karo
+            $rawSonic  = isset($sonicData['cities']) ? $sonicData['cities'] : $sonicData;
+
+            foreach ($rawSonic as $city) {
+                $cityName = $city['name'] ?? $city['city_name'] ?? null;
+                $cityId   = $city['id'] ?? $city['city_id'] ?? '';
+                if ($cityName) {
+                    $sonicCities[] = [
+                        'city_name' => $cityName,
+                        'id'        => $cityId,
+                        'source'    => 'sonic',
+                    ];
+                }
+            }
+        }
+
+        // Tranzo cities mein source add karein
+        $tranzoCitiesTagged = array_map(function ($city) {
+            $city['source'] = 'tranzo';
+            return $city;
+        }, $tranzoCities);
+
+        // Dono merge karein - unique city names
+        $allCities     = $tranzoCitiesTagged;
+        $existingNames = array_column($tranzoCitiesTagged, 'city_name');
+
+        foreach ($sonicCities as $sonicCity) {
+            if (!in_array($sonicCity['city_name'], $existingNames)) {
+                $allCities[] = $sonicCity;
+            }
+        }
+
+        $cities = $allCities;
+
+        return view('domestic-booking', compact('customers', 'users', 'cities', 'tranzoCities', 'sonicCities'))
             ->with('bookingType', 'domestic');
     }
 
