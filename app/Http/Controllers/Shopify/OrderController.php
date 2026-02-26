@@ -567,9 +567,89 @@ class OrderController extends Controller
     //     return $response->json();
     // }
 
+    // public function getOrders(Request $request)
+    // {
+    //     // 🔐 Step 1 — Verify Shopify session token
+    //     $authHeader = $request->header('Authorization');
+
+    //     if (!$authHeader) {
+    //         return response()->json(['error' => 'Missing session token'], 401);
+    //     }
+
+    //     $jwt = str_replace('Bearer ', '', $authHeader);
+
+    //     try {
+    //         $decoded = JWT::decode(
+    //             $jwt,
+    //             new Key(config('services.shopify.secret'), 'HS256')
+    //         );
+
+    //         $shop = str_replace('https://', '', $decoded->dest);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json(['error' => 'Invalid session token'], 401);
+    //     }
+
+    //     // 🔎 Step 2 — Get user with this shop
+    //     $user = User::where('shop_domain', $shop)->first();
+
+    //     if (!$user || !$user->shopify_access_token) {
+    //         return response()->json([
+    //             'error' => 'Store not connected'
+    //         ], 400);
+    //     }
+
+    //     // 📦 Step 3 — Fetch Orders from Shopify
+    //     $response = Http::withHeaders([
+    //         'X-Shopify-Access-Token' => $user->shopify_access_token,
+    //         'Content-Type' => 'application/json'
+    //     ])->post("https://{$shop}/admin/api/2024-01/graphql.json", [
+    //         'query' => '
+    //         {
+    //           orders(first: 20, sortKey: CREATED_AT, reverse: true) {
+    //             edges {
+    //               node {
+    //                 id
+    //                 name
+    //                 createdAt
+    //                 displayFinancialStatus
+    //                 displayFulfillmentStatus
+    //                 totalPriceSet {
+    //                   shopMoney {
+    //                     amount
+    //                     currencyCode
+    //                   }
+    //                 }
+    //                 customer {
+    //                   firstName
+    //                   lastName
+    //                   email
+    //                 }
+    //               }
+    //             }
+    //           }
+    //         }
+    //         '
+    //     ]);
+
+    //     if (!$response->successful()) {
+    //         return response()->json([
+    //             'error' => 'Failed to fetch orders',
+    //             'details' => $response->body()
+    //         ], 500);
+    //     }
+
+    //     return response()->json($response->json());
+    // }
+
     public function getOrders(Request $request)
     {
-        // 🔐 Step 1 — Verify Shopify session token
+        /*
+        |--------------------------------------------------------------------------
+        | 🔐 Step 1 — Verify Shopify Session Token (JWT)
+        |--------------------------------------------------------------------------
+        */
+
         $authHeader = $request->header('Authorization');
 
         if (!$authHeader) {
@@ -590,56 +670,178 @@ class OrderController extends Controller
             return response()->json(['error' => 'Invalid session token'], 401);
         }
 
-        // 🔎 Step 2 — Get user with this shop
-        $user = User::where('shop_domain', $shop)->first();
+        /*
+        |--------------------------------------------------------------------------
+        | 🏬 Step 2 — Get Shop Record
+        |--------------------------------------------------------------------------
+        */
 
-        if (!$user || !$user->shopify_access_token) {
+        $shopRecord = Shop::where('shop_domain', $shop)->first();
+
+        if (!$shopRecord || !$shopRecord->shopify_access_token) {
             return response()->json([
                 'error' => 'Store not connected'
             ], 400);
         }
 
-        // 📦 Step 3 — Fetch Orders from Shopify
-        $response = Http::withHeaders([
-            'X-Shopify-Access-Token' => $user->shopify_access_token,
-            'Content-Type' => 'application/json'
-        ])->post("https://{$shop}/admin/api/2024-01/graphql.json", [
-            'query' => '
-            {
-              orders(first: 20, sortKey: CREATED_AT, reverse: true) {
-                edges {
-                  node {
-                    id
-                    name
-                    createdAt
-                    displayFinancialStatus
-                    displayFulfillmentStatus
-                    totalPriceSet {
-                      shopMoney {
-                        amount
-                        currencyCode
-                      }
-                    }
-                    customer {
-                      firstName
-                      lastName
-                      email
-                    }
-                  }
-                }
-              }
+        /*
+        |--------------------------------------------------------------------------
+        | 📄 Step 3 — Pagination Support
+        |--------------------------------------------------------------------------
+        */
+
+        $limit = $request->input('limit', 20);
+        $cursor = $request->input('cursor');
+        $direction = $request->input('direction', 'next');
+
+        $paginationArgs = '';
+
+        if ($direction === 'next') {
+            $paginationArgs = "first: {$limit}";
+            if ($cursor) {
+                $paginationArgs .= ', after: "' . $cursor . '"';
             }
-            '
+        } else {
+            $paginationArgs = "last: {$limit}";
+            if ($cursor) {
+                $paginationArgs .= ', before: "' . $cursor . '"';
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 📦 Step 4 — GraphQL Query (Courier Friendly)
+        |--------------------------------------------------------------------------
+        */
+
+        $query = <<<GRAPHQL
+        query {
+            orders(
+                $paginationArgs,
+                query: "fulfillment_status:unfulfilled AND status:open AND NOT cancelled_at:*",
+                sortKey: CREATED_AT,
+                reverse: true
+            ) {
+                edges {
+                    cursor
+                    node {
+                        id
+                        name
+                        createdAt
+                        displayFinancialStatus
+                        displayFulfillmentStatus
+                        totalPriceSet {
+                            shopMoney {
+                                amount
+                                currencyCode
+                            }
+                        }
+                        shippingAddress {
+                            name
+                            address1
+                            city
+                            province
+                            country
+                            zip
+                            phone
+                        }
+                        lineItems(first: 25) {
+                            edges {
+                                node {
+                                    title
+                                    quantity
+                                }
+                            }
+                        }
+                    }
+                }
+                pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    startCursor
+                    endCursor
+                }
+            }
+        }
+        GRAPHQL;
+
+        /*
+        |--------------------------------------------------------------------------
+        | 🌐 Step 5 — Call Shopify
+        |--------------------------------------------------------------------------
+        */
+
+        $response = Http::withHeaders([
+            'X-Shopify-Access-Token' => $shopRecord->shopify_access_token,
+            'Content-Type' => 'application/json',
+        ])->post("https://{$shop}/admin/api/2024-01/graphql.json", [
+            'query' => $query
         ]);
 
         if (!$response->successful()) {
             return response()->json([
-                'error' => 'Failed to fetch orders',
+                'error' => 'Failed to fetch orders from Shopify',
                 'details' => $response->body()
             ], 500);
         }
 
-        return response()->json($response->json());
+        $data = $response->json();
+
+        if (isset($data['errors'])) {
+            return response()->json([
+                'error' => 'Shopify GraphQL error',
+                'details' => $data['errors']
+            ], 500);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 🔄 Step 6 — Transform Data For Frontend
+        |--------------------------------------------------------------------------
+        */
+
+        $orders = collect($data['data']['orders']['edges'])
+            ->map(function ($edge) {
+                $node = $edge['node'];
+
+                return [
+                    'id' => $node['id'],
+                    'order_number' => $node['name'],
+                    'created_at' => $node['createdAt'],
+                    'financial_status' => $node['displayFinancialStatus'],
+                    'fulfillment_status' => $node['displayFulfillmentStatus'],
+                    'amount' => $node['totalPriceSet']['shopMoney']['amount'],
+                    'currency' => $node['totalPriceSet']['shopMoney']['currencyCode'],
+                    'shipping' => [
+                        'name' => $node['shippingAddress']['name'] ?? '',
+                        'address1' => $node['shippingAddress']['address1'] ?? '',
+                        'city' => $node['shippingAddress']['city'] ?? '',
+                        'province' => $node['shippingAddress']['province'] ?? '',
+                        'country' => $node['shippingAddress']['country'] ?? '',
+                        'zip' => $node['shippingAddress']['zip'] ?? '',
+                        'phone' => $node['shippingAddress']['phone'] ?? '',
+                    ],
+                    'items' => collect($node['lineItems']['edges'])
+                        ->map(function ($item) {
+                            return [
+                                'title' => $item['node']['title'],
+                                'quantity' => $item['node']['quantity'],
+                            ];
+                        })->values(),
+                    'cursor' => $edge['cursor']
+                ];
+            })->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | 📤 Step 7 — Return Clean Response
+        |--------------------------------------------------------------------------
+        */
+
+        return response()->json([
+            'orders' => $orders,
+            'pageInfo' => $data['data']['orders']['pageInfo']
+        ]);
     }
 
 
