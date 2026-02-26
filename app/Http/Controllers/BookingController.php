@@ -37,7 +37,7 @@ class BookingController extends Controller
         $validated = $request->validate([
             'customer_id'          => 'required|exists:customers,id',
             'bookingType'          => 'required|in:domestic,export,import,cross_border',
-            'service'              => 'nullable|in:overnight,overnet',
+            'service'              => 'nullable|in:overnight,overland',
             'bookChannel'          => 'nullable|in:facebook,whatsapp,instagram,others',
             'paymentMode'          => 'nullable|in:cod,non_cod',
             'origin'               => 'nullable',
@@ -48,8 +48,8 @@ class BookingController extends Controller
             'invoiceValue'         => 'nullable|numeric',
             'weight'               => 'nullable|numeric',
             'pieces'               => 'nullable|numeric',
-            'length'               => 'nullable|numeric',
-            'width'                => 'nullable|numeric',
+            //'length'               => 'nullable|numeric',
+            // 'width'                => 'nullable|numeric',
             'height'               => 'nullable|numeric',
             'dimensionalWeight'    => 'nullable|numeric',
             'orderNo'              => 'nullable',
@@ -296,6 +296,11 @@ class BookingController extends Controller
             ->pluck('ref_no', 'book_no')
             ->toArray();
 
+        // 🔹 NEW: Get company names to identify Sonic vs Tranzo
+        $tranzoCompany = ThirdPartyBooking::whereIn('book_no', $bookNos)
+            ->pluck('company_name', 'book_no')
+            ->toArray();
+
         $users     = User::all();
         $customers = Customer::all();
         $countries = Country::all();
@@ -308,6 +313,7 @@ class BookingController extends Controller
         return view('book-tracking', compact(
             'bookings',
             'thirdPartyBookings',
+            'tranzoCompany',   // 🔹 NEW
             'users',
             'customers',
             'countries',
@@ -338,6 +344,34 @@ class BookingController extends Controller
         return response()->json($response->json());
     }
 
+    public function trackTranzo(Request $request)
+    {
+        $trackingNumber = $request->input('tracking_number');
+
+        if (!$trackingNumber) {
+            return response()->json(['error' => 'Tracking number is required'], 400);
+        }
+
+        $response = Http::withHeaders([
+            'Accept'      => 'application/json',
+            'Content-Type' => 'application/json',
+            'api-token'   => '09f4924c715a474385938f7fef946e04',
+        ])->get('https://api-integration.tranzo.pk/api/custom/v1/track-order', [
+            'tracking_numbers' => $trackingNumber,
+        ]);
+
+        if ($response->failed()) {
+            return response()->json(['error' => 'Failed to fetch tracking data from Tranzo'], $response->status());
+        }
+
+        $data = $response->json();
+
+        if (empty($data) || !is_array($data)) {
+            return response()->json(['error' => 'No data returned from Tranzo'], 404);
+        }
+
+        return response()->json(['details' => $data[0]]);
+    }
     /**
      * Booking status page
      */
@@ -737,8 +771,8 @@ class BookingController extends Controller
             'invoiceValue'        => 'nullable|numeric',
             'weight'              => 'nullable|numeric',
             'pieces'              => 'nullable|numeric',
-            'length'              => 'nullable|numeric',
-            'width'               => 'nullable|numeric',
+            // 'length'              => 'nullable|numeric',
+            //'width'               => 'nullable|numeric',
             'height'              => 'nullable|numeric',
             'dimensionalWeight'   => 'nullable|numeric',
             'orderNo'             => 'nullable',

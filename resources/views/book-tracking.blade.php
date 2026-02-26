@@ -6,6 +6,7 @@
 
 @php
 $bookings = $bookings ?? collect();
+$tranzoCompany = $tranzoCompany ?? [];
 @endphp
 
 <div class="app-container">
@@ -75,6 +76,7 @@ $bookings = $bookings ?? collect();
                         @foreach($bookings as $booking)
                         @php
                         $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
+                        $companyName = strtolower($tranzoCompany[$booking->bookNo] ?? '');
                         @endphp
                         <tr>
                             <td>{{ $booking->bookNo }}</td>
@@ -85,6 +87,7 @@ $bookings = $bookings ?? collect();
                             <td>{{ $booking->pieces ?? '-' }}</td>
                             <td>{{ $refNo }}</td>
                             <td class="d-flex gap-1">
+
                                 {{-- Existing View Button --}}
                                 <button
                                     class="btn btn-primary btn-sm"
@@ -93,16 +96,28 @@ $bookings = $bookings ?? collect();
                                     View
                                 </button>
 
-                                {{-- 🔹 NEW: Track Data Button — only if ref_no exists --}}
-                                @if($refNo !== '-')
+                                {{-- Sonic Track Button --}}
+                                @if($refNo !== '-' && $companyName === 'sonic')
                                 <button
                                     class="btn btn-success btn-sm btn-sonic-track"
                                     data-ref="{{ $refNo }}"
                                     data-bs-toggle="modal"
                                     data-bs-target="#sonicModal{{ $booking->id }}">
-                                    Track Data
+                                    <i class="bi bi-truck me-1"></i>Sonic Track
                                 </button>
                                 @endif
+
+                                {{-- Tranzo Track Button --}}
+                                @if($refNo !== '-' && $companyName === 'tranzo')
+                                <button
+                                    class="btn btn-success btn-sm btn-tranzo-track"
+                                    data-ref="{{ $refNo }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#tranzoModal{{ $booking->id }}">
+                                    <i class="bi bi-truck me-1"></i>Tranzo Track
+                                </button>
+                                @endif
+
                             </td>
                         </tr>
                         @endforeach
@@ -120,13 +135,16 @@ $bookings = $bookings ?? collect();
     </div>
 </div>
 
-{{-- ================= EXISTING MODALS ================= --}}
+{{-- ================= MODALS ================= --}}
 @foreach($bookings as $booking)
 @php
 $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
+$companyName = strtolower($tranzoCompany[$booking->bookNo] ?? '');
 @endphp
 
-{{-- ---- Existing Details Modal (unchanged) ---- --}}
+{{-- ============================================================ --}}
+{{-- 1) EXISTING DETAILS MODAL (unchanged)                        --}}
+{{-- ============================================================ --}}
 <div class="modal fade" id="detailsModal{{ $booking->id }}" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -203,19 +221,15 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
                 </div>
 
                 <div class="row gx-4 mb-4">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">Pieces</label>
                         <input class="form-control" value="{{ $booking->pieces ?? '-' }}" readonly>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Width</label>
-                        <input class="form-control" value="{{ $booking->width ?? '-' }}" readonly>
-                    </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">COD Amount</label>
                         <input class="form-control" value="{{ $booking->codAmount ?? '-' }}" readonly>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">Item Detail</label>
                         <input class="form-control" value="{{ $booking->itemDetail ?? '-' }}" readonly>
                     </div>
@@ -254,8 +268,10 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
     </div>
 </div>
 
-{{-- ---- 🔹 NEW: Sonic Track Data Modal ---- --}}
-@if($refNo !== '-')
+{{-- ============================================================ --}}
+{{-- 2) SONIC TRACK MODAL                                         --}}
+{{-- ============================================================ --}}
+@if($refNo !== '-' && $companyName === 'sonic')
 <div class="modal fade" id="sonicModal{{ $booking->id }}" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -411,6 +427,171 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
 </div>
 @endif
 
+{{-- ============================================================ --}}
+{{-- 3) TRANZO TRACK MODAL                                        --}}
+{{-- ============================================================ --}}
+@if($refNo !== '-' && $companyName === 'tranzo')
+<div class="modal fade" id="tranzoModal{{ $booking->id }}" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title fw-bold text-white">
+                    <i class="bi bi-truck me-2"></i>Tranzo Track Data — {{ $booking->bookNo }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+
+                {{-- Loading --}}
+                <div class="tranzo-loading text-center py-4">
+                    <div class="spinner-border text-white" role="status"></div>
+                    <p class="mt-2 text-white">Fetching Tranzo tracking data...</p>
+                </div>
+
+                {{-- Error --}}
+                <div class="tranzo-error alert alert-danger d-none"></div>
+
+                {{-- Content --}}
+                <div class="tranzo-content d-none">
+
+                    <h6 class="fw-bold text-success mb-3"><i class="bi bi-box-seam me-1"></i> Shipment Info</h6>
+                    <div class="row gx-4 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Tracking Number</label>
+                            <input class="form-control" id="tTrackNo{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Reference Number</label>
+                            <input class="form-control" id="tRefNo{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Order Status</label>
+                            <input class="form-control" id="tOrderStatus{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Shipment Type</label>
+                            <input class="form-control" id="tShipType{{ $booking->id }}" readonly>
+                        </div>
+                    </div>
+
+                    <div class="row gx-4 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Booking Amount</label>
+                            <input class="form-control" id="tAmount{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Booking Weight</label>
+                            <input class="form-control" id="tWeight{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Total Items</label>
+                            <input class="form-control" id="tTotalItems{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Order Details</label>
+                            <input class="form-control" id="tOrderDetails{{ $booking->id }}" readonly>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row gx-4 mb-4">
+
+                        {{-- Customer / Consignee --}}
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-person-fill me-1"></i> Customer / Consignee</h6>
+                            <div class="row gx-3">
+                                <div class="col-6 mb-2">
+                                    <label class="form-label">Name</label>
+                                    <input class="form-control" id="tCustName{{ $booking->id }}" readonly>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <label class="form-label">Phone</label>
+                                    <input class="form-control" id="tCustPhone{{ $booking->id }}" readonly>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <label class="form-label">Email</label>
+                                    <input class="form-control" id="tCustEmail{{ $booking->id }}" readonly>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <label class="form-label">Destination City</label>
+                                    <input class="form-control" id="tDestCity{{ $booking->id }}" readonly>
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <label class="form-label">Delivery Address</label>
+                                    <input class="form-control" id="tDeliveryAddr{{ $booking->id }}" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Merchant / Pickup --}}
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-danger mb-3"><i class="bi bi-shop me-1"></i> Merchant / Pickup</h6>
+                            <div class="row gx-3">
+                                <div class="col-6 mb-2">
+                                    <label class="form-label">Merchant Store</label>
+                                    <input class="form-control" id="tMerchant{{ $booking->id }}" readonly>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <label class="form-label">Pickup Location</label>
+                                    <input class="form-control" id="tPickup{{ $booking->id }}" readonly>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <label class="form-label">Return Location</label>
+                                    <input class="form-control" id="tReturn{{ $booking->id }}" readonly>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <label class="form-label">Special Instructions</label>
+                                    <input class="form-control" id="tInstructions{{ $booking->id }}" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    {{-- Fees --}}
+                    <h6 class="fw-bold mb-3"><i class="bi bi-cash-stack me-1"></i> Fees & Flags</h6>
+                    <div class="row gx-4 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Delivery Fee</label>
+                            <input class="form-control" id="tDeliveryFee{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Delivery Tax</label>
+                            <input class="form-control" id="tDeliveryTax{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Fuel Fee</label>
+                            <input class="form-control" id="tFuelFee{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Cash Handling Fee</label>
+                            <input class="form-control" id="tCashFee{{ $booking->id }}" readonly>
+                        </div>
+                    </div>
+
+                    <div class="row gx-4 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Return Initiated</label>
+                            <input class="form-control" id="tReturnInit{{ $booking->id }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Advice Initiated</label>
+                            <input class="form-control" id="tAdviceInit{{ $booking->id }}" readonly>
+                        </div>
+                    </div>
+
+                </div>{{-- end tranzo-content --}}
+
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 @endforeach
 
 @endsection
@@ -419,18 +600,19 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
 <script>
     document.addEventListener('DOMContentLoaded', function() {
 
-        // 🔹 Track which modals already loaded data (avoid duplicate API calls)
+        // Track which modals already loaded data (avoid duplicate API calls)
         const loadedModals = {};
 
-        // 🔹 Listen for Sonic modal open
+        // ============================================================
+        // SONIC MODAL LOGIC
+        // ============================================================
         document.querySelectorAll('[id^="sonicModal"]').forEach(function(modalEl) {
 
             modalEl.addEventListener('show.bs.modal', function() {
 
                 const bookingId = modalEl.id.replace('sonicModal', '');
 
-                // Already loaded? Skip
-                if (loadedModals[bookingId]) return;
+                if (loadedModals['sonic_' + bookingId]) return;
 
                 const btn = document.querySelector(`[data-bs-target="#sonicModal${bookingId}"]`);
                 const trackingNumber = btn ? btn.getAttribute('data-ref') : null;
@@ -441,12 +623,10 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
                 const errorEl = modalEl.querySelector('.sonic-error');
                 const contentEl = modalEl.querySelector('.sonic-content');
 
-                // Show loading
                 loadingEl.classList.remove('d-none');
                 errorEl.classList.add('d-none');
                 contentEl.classList.add('d-none');
 
-                // 🔹 Call our Laravel route (which calls Sonic API securely)
                 fetch(`{{ route('booking.sonic.track') }}?tracking_number=${trackingNumber}`)
                     .then(res => res.json())
                     .then(data => {
@@ -461,7 +641,6 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
 
                         const d = data.details;
 
-                        // ── Shipment Info ──
                         setVal(`sTrackNo${bookingId}`, d.tracking_number);
                         setVal(`sOrderId${bookingId}`, d.order_id);
                         setVal(`sOrderDate${bookingId}`, d.order_date);
@@ -471,19 +650,16 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
                         setVal(`sInstructions${bookingId}`, d.order_information?.instructions ?? '-');
                         setVal(`sSubSegment${bookingId}`, d.order_information?.sub_segment ?? '-');
 
-                        // ── Shipper ──
                         setVal(`sShipperName${bookingId}`, d.shipper?.name ?? '-');
                         setVal(`sShipperCity${bookingId}`, d.shipper?.city ?? '-');
                         setVal(`sShipperPhone${bookingId}`, d.shipper?.phone_number_1 ?? '-');
                         setVal(`sShipperEmail${bookingId}`, d.shipper?.email ?? '-');
 
-                        // ── Consignee ──
                         setVal(`sConsigneeName${bookingId}`, d.consignee?.name ?? '-');
                         setVal(`sConsigneeDest${bookingId}`, d.consignee?.destination ?? '-');
                         setVal(`sConsigneePhone${bookingId}`, d.consignee?.phone_number_1 ?? '-');
                         setVal(`sConsigneeAddr${bookingId}`, d.consignee?.address ?? '-');
 
-                        // ── Items ──
                         const itemsBody = document.getElementById(`sItemsBody${bookingId}`);
                         itemsBody.innerHTML = '';
                         const items = d.order_information?.items ?? [];
@@ -501,7 +677,6 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
                             itemsBody.innerHTML = '<tr><td colspan="4" class="text-center">No items</td></tr>';
                         }
 
-                        // ── Tracking History ──
                         const histBody = document.getElementById(`sHistoryBody${bookingId}`);
                         histBody.innerHTML = '';
                         const history = d.tracking_history ?? [];
@@ -519,7 +694,7 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
                         }
 
                         contentEl.classList.remove('d-none');
-                        loadedModals[bookingId] = true; // Mark as loaded
+                        loadedModals['sonic_' + bookingId] = true;
                     })
                     .catch(err => {
                         loadingEl.classList.add('d-none');
@@ -530,11 +705,93 @@ $refNo = $thirdPartyBookings[$booking->bookNo] ?? '-';
             });
         });
 
-        // Helper
+        // ============================================================
+        // TRANZO MODAL LOGIC
+        // ============================================================
+        document.querySelectorAll('[id^="tranzoModal"]').forEach(function(modalEl) {
+
+            modalEl.addEventListener('show.bs.modal', function() {
+
+                const bookingId = modalEl.id.replace('tranzoModal', '');
+
+                if (loadedModals['tranzo_' + bookingId]) return;
+
+                const btn = document.querySelector(`[data-bs-target="#tranzoModal${bookingId}"]`);
+                const trackingNumber = btn ? btn.getAttribute('data-ref') : null;
+
+                if (!trackingNumber) return;
+
+                const loadingEl = modalEl.querySelector('.tranzo-loading');
+                const errorEl = modalEl.querySelector('.tranzo-error');
+                const contentEl = modalEl.querySelector('.tranzo-content');
+
+                loadingEl.classList.remove('d-none');
+                errorEl.classList.add('d-none');
+                contentEl.classList.add('d-none');
+
+                fetch(`{{ route('booking.tranzo.track') }}?tracking_number=${trackingNumber}`)
+                    .then(res => res.json())
+                    .then(data => {
+
+                        loadingEl.classList.add('d-none');
+
+                        if (data.error) {
+                            errorEl.textContent = data.error;
+                            errorEl.classList.remove('d-none');
+                            return;
+                        }
+
+                        const d = data.details;
+
+                        // Shipment Info
+                        setVal(`tTrackNo${bookingId}`, d.tracking_number ?? '-');
+                        setVal(`tRefNo${bookingId}`, d.reference_number ?? '-');
+                        setVal(`tOrderStatus${bookingId}`, d.order_status ?? '-');
+                        setVal(`tShipType${bookingId}`, d.ds_shipment_type ?? '-');
+                        setVal(`tAmount${bookingId}`, d.booking_amount ?? '-');
+                        setVal(`tWeight${bookingId}`, d.booking_weight ?? '-');
+                        setVal(`tTotalItems${bookingId}`, d.total_items ?? '-');
+                        setVal(`tOrderDetails${bookingId}`, d.order_details ?? '-');
+
+                        // Customer
+                        setVal(`tCustName${bookingId}`, d.customer_name ?? '-');
+                        setVal(`tCustPhone${bookingId}`, d.customer_phone ?? '-');
+                        setVal(`tCustEmail${bookingId}`, d.customer_email ?? '-');
+                        setVal(`tDestCity${bookingId}`, d.destination_city ?? '-');
+                        setVal(`tDeliveryAddr${bookingId}`, d.delivery_address ?? '-');
+
+                        // Merchant / Pickup
+                        setVal(`tMerchant${bookingId}`, d.merchant_store ?? '-');
+                        setVal(`tPickup${bookingId}`, d.pickup_location ?? '-');
+                        setVal(`tReturn${bookingId}`, d.return_location ?? '-');
+                        setVal(`tInstructions${bookingId}`, d.special_instructions || '-');
+
+                        // Fees
+                        setVal(`tDeliveryFee${bookingId}`, d.delivery_fee ?? '-');
+                        setVal(`tDeliveryTax${bookingId}`, d.delivery_tax ?? '-');
+                        setVal(`tFuelFee${bookingId}`, d.delivery_fuel_fee ?? '-');
+                        setVal(`tCashFee${bookingId}`, d.cash_handling_fee ?? '-');
+                        setVal(`tReturnInit${bookingId}`, d.return_initiated ?? '-');
+                        setVal(`tAdviceInit${bookingId}`, d.advice_initiated ?? '-');
+
+                        contentEl.classList.remove('d-none');
+                        loadedModals['tranzo_' + bookingId] = true;
+                    })
+                    .catch(err => {
+                        loadingEl.classList.add('d-none');
+                        errorEl.textContent = 'Something went wrong. Please try again.';
+                        errorEl.classList.remove('d-none');
+                        console.error(err);
+                    });
+            });
+        });
+
+        // Shared Helper
         function setVal(id, value) {
             const el = document.getElementById(id);
             if (el) el.value = value ?? '-';
         }
+
     });
 </script>
 @endpush
