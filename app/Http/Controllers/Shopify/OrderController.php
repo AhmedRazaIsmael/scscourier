@@ -1000,8 +1000,8 @@ class OrderController extends Controller
 
         $authHeader = $request->header('Authorization');
 
-        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
-            return response()->json(['error' => 'Missing Authorization token'], 401);
+        if (!$authHeader) {
+            return response()->json(['error' => 'Missing session token'], 401);
         }
 
         $jwt = str_replace('Bearer ', '', $authHeader);
@@ -1009,17 +1009,13 @@ class OrderController extends Controller
         try {
             $decoded = JWT::decode(
                 $jwt,
-                new Key(config('services.shopify.api_secret'), 'HS256')
+                new Key(config('services.shopify.secret'), 'HS256')
             );
 
-            // Extract shop domain
             $shop = str_replace('https://', '', $decoded->dest);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Invalid or expired session token',
-                'message' => $e->getMessage()
-            ], 401);
+            return response()->json(['error' => 'Invalid session token'], 401);
         }
 
         /*
