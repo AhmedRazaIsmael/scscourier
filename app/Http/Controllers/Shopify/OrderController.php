@@ -1133,46 +1133,139 @@ class OrderController extends Controller
     //     ]);
     // }
 
+    // public function pushOrders(Request $request)
+    // {
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 1️⃣ Validate App Token + Orders
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     $request->validate([
+    //         'app_token' => 'required|string',
+    //         'orders' => 'required|array|min:1',
+    //         'orders.*.order_number' => 'required|string',
+    //         'orders.*.financial_status' => 'required|string',
+    //         'orders.*.amount' => 'required',
+    //     ]);
+
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 2️⃣ Get User Using app_token
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     $user = User::where('app_token', $request->app_token)->first();
+
+    //     if (!$user) {
+    //         return response()->json([
+    //             'error' => 'Invalid app token'
+    //         ], 401);
+    //     }
+
+    //     $customerId = $user->id;
+    //     $shop       = $user->shop_domain; // optional if needed later
+
+    //     $createdBookings = [];
+
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 3️⃣ Loop Orders
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     foreach ($request->orders as $order) {
+
+    //         if (empty($order['shipping'])) {
+    //             continue;
+    //         }
+
+    //         $orderNo = ltrim($order['order_number'], '#');
+
+    //         // Prevent duplicate
+    //         if (Booking::where('orderNo', $orderNo)->exists()) {
+    //             continue;
+    //         }
+
+    //         /*
+    //         |--------------------------------------------------------------------------
+    //         | 4️⃣ Generate Booking Number
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //         $bookingType = 'domestic';
+    //         $typeCode    = '01';
+
+    //         $prefix  = 'AB';
+    //         $year    = date('y');
+    //         $month   = date('m');
+    //         $random  = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+    //         $bookNo  = "{$prefix}{$year}{$month}{$typeCode}{$random}";
+
+    //         /*
+    //         |--------------------------------------------------------------------------
+    //         | 5️⃣ Detect Payment Mode
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //         $paymentMode = $order['financial_status'] === 'PAID'
+    //             ? 'non_cod'
+    //             : 'cod';
+
+    //         /*
+    //         |--------------------------------------------------------------------------
+    //         | 6️⃣ Create Booking
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //         Booking::create([
+    //             'customer_id'        => $customerId, // from app_token user
+    //             'bookingType'        => $bookingType,
+    //             'paymentMode'        => $paymentMode,
+    //             'destination'        => $order['shipping']['city'] ?? '',
+    //             'destinationCountry' => $order['shipping']['country'] ?? '',
+    //             'invoiceValue'       => $order['amount'],
+    //             'weight'             => 1,
+    //             'pieces'             => 1,
+    //             'orderNo'            => $orderNo,
+
+    //             // Shopify buyer stored as consignee
+    //             'consigneeName'      => $order['shipping']['name'] ?? '',
+    //             'consigneeNumber'    => $order['shipping']['phone'] ?? '',
+    //             'consigneeAddress'   => $order['shipping']['address1'] ?? '',
+    //             'consigneeEmail'     => null,
+
+    //             'bookNo'             => $bookNo,
+    //             'bookDate'           => now()->toDateString(),
+    //         ]);
+
+    //         $createdBookings[] = [
+    //             'shopify_order' => $orderNo,
+    //             'booking_no'    => $bookNo
+    //         ];
+    //     }
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'bookings_created' => $createdBookings
+    //     ]);
+    // }
+
     public function pushOrders(Request $request)
     {
-        /*
-        |--------------------------------------------------------------------------
-        | 1️⃣ Validate App Token + Orders
-        |--------------------------------------------------------------------------
-        */
-
         $request->validate([
             'app_token' => 'required|string',
-            'orders' => 'required|array|min:1',
-            'orders.*.order_number' => 'required|string',
-            'orders.*.financial_status' => 'required|string',
-            'orders.*.amount' => 'required',
+            'orders'    => 'required|array|min:1',
         ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | 2️⃣ Get User Using app_token
-        |--------------------------------------------------------------------------
-        */
 
         $user = User::where('app_token', $request->app_token)->first();
 
         if (!$user) {
-            return response()->json([
-                'error' => 'Invalid app token'
-            ], 401);
+            return response()->json(['error' => 'Invalid app token'], 401);
         }
 
         $customerId = $user->id;
-        $shop       = $user->shop_domain; // optional if needed later
-
         $createdBookings = [];
-
-        /*
-        |--------------------------------------------------------------------------
-        | 3️⃣ Loop Orders
-        |--------------------------------------------------------------------------
-        */
 
         foreach ($request->orders as $order) {
 
@@ -1182,45 +1275,25 @@ class OrderController extends Controller
 
             $orderNo = ltrim($order['order_number'], '#');
 
-            // Prevent duplicate
             if (Booking::where('orderNo', $orderNo)->exists()) {
                 continue;
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | 4️⃣ Generate Booking Number
-            |--------------------------------------------------------------------------
-            */
-
-            $bookingType = 'domestic';
-            $typeCode    = '01';
-
+            // 🔥 Generate booking number SAME as store()
+            $typeCode = '01';
             $prefix  = 'AB';
             $year    = date('y');
             $month   = date('m');
             $random  = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
             $bookNo  = "{$prefix}{$year}{$month}{$typeCode}{$random}";
 
-            /*
-            |--------------------------------------------------------------------------
-            | 5️⃣ Detect Payment Mode
-            |--------------------------------------------------------------------------
-            */
-
             $paymentMode = $order['financial_status'] === 'PAID'
                 ? 'non_cod'
                 : 'cod';
 
-            /*
-            |--------------------------------------------------------------------------
-            | 6️⃣ Create Booking
-            |--------------------------------------------------------------------------
-            */
-
-            Booking::create([
-                'customer_id'        => $customerId, // from app_token user
-                'bookingType'        => $bookingType,
+            $bookingData = [
+                'customer_id'        => $customerId,
+                'bookingType'        => 'domestic',
                 'paymentMode'        => $paymentMode,
                 'destination'        => $order['shipping']['city'] ?? '',
                 'destinationCountry' => $order['shipping']['country'] ?? '',
@@ -1228,16 +1301,64 @@ class OrderController extends Controller
                 'weight'             => 1,
                 'pieces'             => 1,
                 'orderNo'            => $orderNo,
-
-                // Shopify buyer stored as consignee
                 'consigneeName'      => $order['shipping']['name'] ?? '',
                 'consigneeNumber'    => $order['shipping']['phone'] ?? '',
                 'consigneeAddress'   => $order['shipping']['address1'] ?? '',
-                'consigneeEmail'     => null,
-
                 'bookNo'             => $bookNo,
                 'bookDate'           => now()->toDateString(),
-            ]);
+            ];
+
+            Booking::create($bookingData);
+
+            /*
+            |--------------------------------------------------------------------------
+            | 🔥 TRANZO INTEGRATION (Same As store)
+            |--------------------------------------------------------------------------
+            */
+
+            if ($paymentMode === 'cod') {
+
+                $tranzoPayload = [
+                    'reference_number' => $bookNo,
+                    'customer_name'    => $order['shipping']['name'] ?? '',
+                    'customer_phone'   => $order['shipping']['phone'] ?? '',
+                    'destination_city' => $order['shipping']['city'] ?? '',
+                    'delivery_address' => $order['shipping']['address1'] ?? '',
+                    'cod_amount'       => (int)$order['amount'],
+                    'booking_weight'   => 1,
+                    'total_items'      => 1,
+                ];
+
+                $tranzoResponse = Http::withHeaders([
+                    'Accept'       => 'application/json',
+                    'Content-Type' => 'application/json',
+                    'api-token'    => 'YOUR_TRANZO_TOKEN',
+                ])->post(
+                    'https://api-integration.tranzo.pk/api/custom/v1/create-order/',
+                    $tranzoPayload
+                );
+
+                $tranzoData = $tranzoResponse->json();
+
+                if (isset($tranzoData['tracking_number'])) {
+                    \App\Models\ThirdPartyBooking::create([
+                        'book_no'      => $bookNo,
+                        'book_date'    => now()->toDateString(),
+                        'company_name' => 'Tranzo',
+                        'ref_no'       => $tranzoData['tracking_number'],
+                        'remarks'      => 'Auto booked via Shopify Push',
+                        'updated_by'   => null,
+                    ]);
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 🔥 SONIC INTEGRATION (Same As store)
+            |--------------------------------------------------------------------------
+            */
+
+            // Same pattern as above — use $bookNo and shipping data
 
             $createdBookings[] = [
                 'shopify_order' => $orderNo,
