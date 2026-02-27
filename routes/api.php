@@ -26,10 +26,11 @@ Route::get('booking/{trackNumber}', [BookingController::class, 'trackBooking']);
 Route::post('/connect-app', [LoginController::class, 'connect']);
 
 Route::get('/orders', [\App\Http\Controllers\Shopify\OrderController::class, 'getOrders']);
-Route::middleware(['shopify.session'])->group(function () {
+Route::post('/push-orders', [\App\Http\Controllers\Shopify\OrderController::class, 'pushOrders']);
+// Route::middleware(['shopify.session'])->group(function () {
 
     
 
-    Route::post('/push-orders', [\App\Http\Controllers\Shopify\OrderController::class, 'pushOrders']);
+//     Route::post('/push-orders', [\App\Http\Controllers\Shopify\OrderController::class, 'pushOrders']);
 
-});
+// });
