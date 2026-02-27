@@ -994,7 +994,7 @@ class OrderController extends Controller
     {
         /*
         |--------------------------------------------------------------------------
-        | 1️⃣ Validate & Decode Shopify JWT
+        | 1️⃣ Verify Shopify Session JWT
         |--------------------------------------------------------------------------
         */
 
@@ -1007,41 +1007,45 @@ class OrderController extends Controller
         $jwt = str_replace('Bearer ', '', $authHeader);
 
         try {
-            $decoded = JWT::decode(
+            $decoded = \Firebase\JWT\JWT::decode(
                 $jwt,
-                new Key(config('services.shopify.secret'), 'HS256')
+                new \Firebase\JWT\Key(config('services.shopify.secret'), 'HS256')
             );
 
             $shop = str_replace('https://', '', $decoded->dest);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Invalid session token'], 401);
+            return response()->json([
+                'error'   => 'Invalid session token',
+                'message' => $e->getMessage()
+            ], 401);
         }
 
         /*
         |--------------------------------------------------------------------------
-        | 2️⃣ Find User By Shop Domain
+        | 2️⃣ Get User By shop_domain
         |--------------------------------------------------------------------------
         */
 
         $user = User::where('shop_domain', $shop)->first();
 
-        if (!$user || !$user->shopify_access_token) {
-            return response()->json(['error' => 'Unauthorized shop'], 401);
+        if (!$user) {
+            return response()->json(['error' => 'User not found for this shop'], 404);
         }
 
         /*
         |--------------------------------------------------------------------------
-        | 3️⃣ Validate Orders Input
+        | 3️⃣ Validate Orders Payload
         |--------------------------------------------------------------------------
         */
 
         $request->validate([
             'orders' => 'required|array|min:1',
-            'orders.*' => 'required|string'
+            'orders.*.order_number' => 'required|string',
+            'orders.*.financial_status' => 'required|string',
+            'orders.*.amount' => 'required',
         ]);
 
-        $accessToken = $user->shopify_access_token;
         $createdBookings = [];
 
         /*
@@ -1050,119 +1054,92 @@ class OrderController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        foreach ($request->orders as $orderId) {
+        foreach ($request->orders as $order) {
 
-            // Fetch full order from Shopify
-            $response = Http::withHeaders([
-                'X-Shopify-Access-Token' => $accessToken,
-                'Content-Type' => 'application/json'
-            ])->post("https://{$shop}/admin/api/2024-01/graphql.json", [
-                'query' => '
-                query getOrder($id: ID!) {
-                    order(id: $id) {
-                        id
-                        name
-                        totalPriceSet {
-                            shopMoney { amount currencyCode }
-                        }
-                        shippingAddress {
-                            name
-                            address1
-                            city
-                            province
-                            country
-                            zip
-                            phone
-                        }
-                        lineItems(first: 10) {
-                            edges {
-                                node {
-                                    title
-                                    quantity
-                                }
-                            }
-                        }
-                    }
-                }',
-                'variables' => ['id' => $orderId]
-            ]);
-
-            if (!$response->successful()) {
-                Log::error('Shopify Order Fetch Failed', [
-                    'orderId' => $orderId,
-                    'response' => $response->body()
-                ]);
+            if (empty($order['shipping'])) {
                 continue;
             }
 
-            $order = $response->json()['data']['order'] ?? null;
+            $orderNo = ltrim($order['order_number'], '#');
 
-            if (!$order || !$order['shippingAddress']) {
-                continue; // Skip digital orders
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | 5️⃣ Prevent Duplicate Booking
-            |--------------------------------------------------------------------------
-            */
-
-            if (Booking::where('orderNo', $order['name'])->exists()) {
+            // Prevent duplicate
+            if (Booking::where('orderNo', $orderNo)->exists()) {
                 continue;
             }
 
             /*
             |--------------------------------------------------------------------------
-            | 6️⃣ Create / Find Customer
+            | 5️⃣ Create / Find Customer (End Customer)
             |--------------------------------------------------------------------------
             */
 
             $customer = Customer::firstOrCreate(
-                ['contact_no_1' => $order['shippingAddress']['phone'] ?? uniqid()],
+                ['contact_no_1' => $order['shipping']['phone'] ?? uniqid()],
                 [
-                    'contact_person_1' => $order['shippingAddress']['name'],
-                    'address_1'        => $order['shippingAddress']['address1'],
+                    'contact_person_1' => $order['shipping']['name'] ?? '',
+                    'address_1'        => $order['shipping']['address1'] ?? '',
                     'email_1'          => null,
                 ]
             );
 
             /*
             |--------------------------------------------------------------------------
-            | 7️⃣ Generate Booking Number
+            | 6️⃣ Generate Booking Number (Same Format As Dashboard)
             |--------------------------------------------------------------------------
             */
 
-            $prefix  = 'SB';
+            $bookingType = 'domestic';
+
+            switch ($bookingType) {
+                case 'domestic': $typeCode = '01'; break;
+                case 'import': $typeCode = '02'; break;
+                case 'export': $typeCode = '03'; break;
+                case 'cross_border': $typeCode = '04'; break;
+                default: $typeCode = '00'; break;
+            }
+
+            $prefix  = 'AB';
             $year    = date('y');
             $month   = date('m');
             $random  = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
-            $bookNo  = "{$prefix}{$year}{$month}{$random}";
+            $bookNo  = "{$prefix}{$year}{$month}{$typeCode}{$random}";
 
             /*
             |--------------------------------------------------------------------------
-            | 8️⃣ Save Booking
+            | 7️⃣ Detect Payment Mode
             |--------------------------------------------------------------------------
             */
 
-            $booking = Booking::create([
+            $paymentMode = $order['financial_status'] === 'PAID'
+                ? 'non_cod'
+                : 'cod';
+
+            /*
+            |--------------------------------------------------------------------------
+            | 8️⃣ Create Booking (Linked To Shopify User)
+            |--------------------------------------------------------------------------
+            */
+
+            Booking::create([
+                'user_id'            => $user->id, // 🔥 important
                 'customer_id'        => $customer->id,
-                'bookingType'        => 'domestic',
-                'paymentMode'        => 'cod',
-                'destination'        => $order['shippingAddress']['city'],
-                'destinationCountry' => $order['shippingAddress']['country'],
-                'invoiceValue'       => $order['totalPriceSet']['shopMoney']['amount'],
+                'bookingType'        => $bookingType,
+                'paymentMode'        => $paymentMode,
+                'destination'        => $order['shipping']['city'] ?? '',
+                'destinationCountry' => $order['shipping']['country'] ?? '',
+                'invoiceValue'       => $order['amount'],
                 'weight'             => 1,
                 'pieces'             => 1,
-                'orderNo'            => $order['name'],
-                'consigneeName'      => $order['shippingAddress']['name'],
-                'consigneeNumber'    => $order['shippingAddress']['phone'],
-                'consigneeAddress'   => $order['shippingAddress']['address1'],
+                'orderNo'            => $orderNo,
+                'consigneeName'      => $order['shipping']['name'] ?? '',
+                'consigneeNumber'    => $order['shipping']['phone'] ?? '',
+                'consigneeAddress'   => $order['shipping']['address1'] ?? '',
                 'bookNo'             => $bookNo,
                 'bookDate'           => now()->toDateString(),
             ]);
 
             $createdBookings[] = [
-                'shopify_order' => $order['name'],
+                'shopify_order' => $orderNo,
                 'booking_no'    => $bookNo
             ];
         }
