@@ -1016,22 +1016,24 @@ class OrderController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error'   => 'Invalid session token',
+                'error' => 'Invalid session token',
                 'message' => $e->getMessage()
             ], 401);
         }
 
         /*
         |--------------------------------------------------------------------------
-        | 2️⃣ Get User By shop_domain
+        | 2️⃣ Get Customer ID Using shop_domain
         |--------------------------------------------------------------------------
         */
 
         $user = User::where('shop_domain', $shop)->first();
 
         if (!$user) {
-            return response()->json(['error' => 'User not found for this shop'], 404);
+            return response()->json(['error' => 'Customer not found for this shop'], 404);
         }
+
+        $customerId = $user->id;
 
         /*
         |--------------------------------------------------------------------------
@@ -1069,34 +1071,12 @@ class OrderController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 5️⃣ Create / Find Customer (End Customer)
-            |--------------------------------------------------------------------------
-            */
-
-            $customer = Customer::firstOrCreate(
-                ['contact_no_1' => $order['shipping']['phone'] ?? uniqid()],
-                [
-                    'contact_person_1' => $order['shipping']['name'] ?? '',
-                    'address_1'        => $order['shipping']['address1'] ?? '',
-                    'email_1'          => null,
-                ]
-            );
-
-            /*
-            |--------------------------------------------------------------------------
-            | 6️⃣ Generate Booking Number (Same Format As Dashboard)
+            | 5️⃣ Generate Booking Number
             |--------------------------------------------------------------------------
             */
 
             $bookingType = 'domestic';
-
-            switch ($bookingType) {
-                case 'domestic': $typeCode = '01'; break;
-                case 'import': $typeCode = '02'; break;
-                case 'export': $typeCode = '03'; break;
-                case 'cross_border': $typeCode = '04'; break;
-                default: $typeCode = '00'; break;
-            }
+            $typeCode    = '01';
 
             $prefix  = 'AB';
             $year    = date('y');
@@ -1106,7 +1086,7 @@ class OrderController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 7️⃣ Detect Payment Mode
+            | 6️⃣ Detect Payment Mode
             |--------------------------------------------------------------------------
             */
 
@@ -1116,13 +1096,12 @@ class OrderController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 8️⃣ Create Booking (Linked To Shopify User)
+            | 7️⃣ Create Booking
             |--------------------------------------------------------------------------
             */
 
             Booking::create([
-                'user_id'            => $user->id, // 🔥 important
-                'customer_id'        => $customer->id,
+                'customer_id'        => $customerId, // 🔥 from shop_domain
                 'bookingType'        => $bookingType,
                 'paymentMode'        => $paymentMode,
                 'destination'        => $order['shipping']['city'] ?? '',
@@ -1131,9 +1110,13 @@ class OrderController extends Controller
                 'weight'             => 1,
                 'pieces'             => 1,
                 'orderNo'            => $orderNo,
+
+                // Shopify buyer stored as consignee
                 'consigneeName'      => $order['shipping']['name'] ?? '',
                 'consigneeNumber'    => $order['shipping']['phone'] ?? '',
                 'consigneeAddress'   => $order['shipping']['address1'] ?? '',
+                'consigneeEmail'     => null,
+
                 'bookNo'             => $bookNo,
                 'bookDate'           => now()->toDateString(),
             ]);
