@@ -990,69 +990,187 @@ class OrderController extends Controller
     //     ]);
     // }
 
+    // public function pushOrders(Request $request)
+    // {
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 1️⃣ Verify Shopify Session JWT
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     $authHeader = $request->header('Authorization');
+
+    //     if (!$authHeader) {
+    //         return response()->json(['error' => 'Missing session token'], 401);
+    //     }
+
+    //     $jwt = str_replace('Bearer ', '', $authHeader);
+
+    //     try {
+    //         $decoded = \Firebase\JWT\JWT::decode(
+    //             $jwt,
+    //             new \Firebase\JWT\Key(config('services.shopify.secret'), 'HS256')
+    //         );
+
+    //         $shop = str_replace('https://', '', $decoded->dest);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'error' => 'Invalid session token',
+    //             'message' => $e->getMessage()
+    //         ], 401);
+    //     }
+
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 2️⃣ Get Customer ID Using shop_domain
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     $user = User::where('shop_domain', $shop)->first();
+
+    //     if (!$user) {
+    //         return response()->json(['error' => 'Customer not found for this shop'], 404);
+    //     }
+
+    //     $customerId = $user->id;
+
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 3️⃣ Validate Orders Payload
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     $request->validate([
+    //         'orders' => 'required|array|min:1',
+    //         'orders.*.order_number' => 'required|string',
+    //         'orders.*.financial_status' => 'required|string',
+    //         'orders.*.amount' => 'required',
+    //     ]);
+
+    //     $createdBookings = [];
+
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 4️⃣ Loop Orders
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     foreach ($request->orders as $order) {
+
+    //         if (empty($order['shipping'])) {
+    //             continue;
+    //         }
+
+    //         $orderNo = ltrim($order['order_number'], '#');
+
+    //         // Prevent duplicate
+    //         if (Booking::where('orderNo', $orderNo)->exists()) {
+    //             continue;
+    //         }
+
+    //         /*
+    //         |--------------------------------------------------------------------------
+    //         | 5️⃣ Generate Booking Number
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //         $bookingType = 'domestic';
+    //         $typeCode    = '01';
+
+    //         $prefix  = 'AB';
+    //         $year    = date('y');
+    //         $month   = date('m');
+    //         $random  = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+    //         $bookNo  = "{$prefix}{$year}{$month}{$typeCode}{$random}";
+
+    //         /*
+    //         |--------------------------------------------------------------------------
+    //         | 6️⃣ Detect Payment Mode
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //         $paymentMode = $order['financial_status'] === 'PAID'
+    //             ? 'non_cod'
+    //             : 'cod';
+
+    //         /*
+    //         |--------------------------------------------------------------------------
+    //         | 7️⃣ Create Booking
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //         Booking::create([
+    //             'customer_id'        => $customerId, // 🔥 from shop_domain
+    //             'bookingType'        => $bookingType,
+    //             'paymentMode'        => $paymentMode,
+    //             'destination'        => $order['shipping']['city'] ?? '',
+    //             'destinationCountry' => $order['shipping']['country'] ?? '',
+    //             'invoiceValue'       => $order['amount'],
+    //             'weight'             => 1,
+    //             'pieces'             => 1,
+    //             'orderNo'            => $orderNo,
+
+    //             // Shopify buyer stored as consignee
+    //             'consigneeName'      => $order['shipping']['name'] ?? '',
+    //             'consigneeNumber'    => $order['shipping']['phone'] ?? '',
+    //             'consigneeAddress'   => $order['shipping']['address1'] ?? '',
+    //             'consigneeEmail'     => null,
+
+    //             'bookNo'             => $bookNo,
+    //             'bookDate'           => now()->toDateString(),
+    //         ]);
+
+    //         $createdBookings[] = [
+    //             'shopify_order' => $orderNo,
+    //             'booking_no'    => $bookNo
+    //         ];
+    //     }
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'bookings_created' => $createdBookings
+    //     ]);
+    // }
+
     public function pushOrders(Request $request)
     {
         /*
         |--------------------------------------------------------------------------
-        | 1️⃣ Verify Shopify Session JWT
-        |--------------------------------------------------------------------------
-        */
-
-        $authHeader = $request->header('Authorization');
-
-        if (!$authHeader) {
-            return response()->json(['error' => 'Missing session token'], 401);
-        }
-
-        $jwt = str_replace('Bearer ', '', $authHeader);
-
-        try {
-            $decoded = \Firebase\JWT\JWT::decode(
-                $jwt,
-                new \Firebase\JWT\Key(config('services.shopify.secret'), 'HS256')
-            );
-
-            $shop = str_replace('https://', '', $decoded->dest);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Invalid session token',
-                'message' => $e->getMessage()
-            ], 401);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | 2️⃣ Get Customer ID Using shop_domain
-        |--------------------------------------------------------------------------
-        */
-
-        $user = User::where('shop_domain', $shop)->first();
-
-        if (!$user) {
-            return response()->json(['error' => 'Customer not found for this shop'], 404);
-        }
-
-        $customerId = $user->id;
-
-        /*
-        |--------------------------------------------------------------------------
-        | 3️⃣ Validate Orders Payload
+        | 1️⃣ Validate App Token + Orders
         |--------------------------------------------------------------------------
         */
 
         $request->validate([
+            'app_token' => 'required|string',
             'orders' => 'required|array|min:1',
             'orders.*.order_number' => 'required|string',
             'orders.*.financial_status' => 'required|string',
             'orders.*.amount' => 'required',
         ]);
 
+        /*
+        |--------------------------------------------------------------------------
+        | 2️⃣ Get User Using app_token
+        |--------------------------------------------------------------------------
+        */
+
+        $user = User::where('app_token', $request->app_token)->first();
+
+        if (!$user) {
+            return response()->json([
+                'error' => 'Invalid app token'
+            ], 401);
+        }
+
+        $customerId = $user->id;
+        $shop       = $user->shop_domain; // optional if needed later
+
         $createdBookings = [];
 
         /*
         |--------------------------------------------------------------------------
-        | 4️⃣ Loop Orders
+        | 3️⃣ Loop Orders
         |--------------------------------------------------------------------------
         */
 
@@ -1071,7 +1189,7 @@ class OrderController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 5️⃣ Generate Booking Number
+            | 4️⃣ Generate Booking Number
             |--------------------------------------------------------------------------
             */
 
@@ -1086,7 +1204,7 @@ class OrderController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 6️⃣ Detect Payment Mode
+            | 5️⃣ Detect Payment Mode
             |--------------------------------------------------------------------------
             */
 
@@ -1096,12 +1214,12 @@ class OrderController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | 7️⃣ Create Booking
+            | 6️⃣ Create Booking
             |--------------------------------------------------------------------------
             */
 
             Booking::create([
-                'customer_id'        => $customerId, // 🔥 from shop_domain
+                'customer_id'        => $customerId, // from app_token user
                 'bookingType'        => $bookingType,
                 'paymentMode'        => $paymentMode,
                 'destination'        => $order['shipping']['city'] ?? '',
