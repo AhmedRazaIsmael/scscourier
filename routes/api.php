@@ -30,6 +30,6 @@ Route::middleware(['shopify.session'])->group(function () {
 
     
 
-    // Route::post('/push-orders', [\App\Http\Controllers\Shopify\OrderController::class, 'pushOrders']);
+    Route::post('/push-orders', [\App\Http\Controllers\Shopify\OrderController::class, 'pushOrders']);
 
 });
