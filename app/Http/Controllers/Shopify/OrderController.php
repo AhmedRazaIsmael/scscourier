@@ -649,33 +649,39 @@ class OrderController extends Controller
     {
         /*
         |--------------------------------------------------------------------------
-        | 🔐 Step 1 — Verify Shopify Session Token (JWT)
+        | 1️⃣ Get app_token From Authorization Header
         |--------------------------------------------------------------------------
         */
 
         $authHeader = $request->header('Authorization');
 
         if (!$authHeader) {
-            return response()->json(['error' => 'Missing session token'], 401);
+            return response()->json(['error' => 'Missing Authorization header'], 401);
         }
 
-        $jwt = str_replace('Bearer ', '', $authHeader);
-
-        try {
-            $decoded = JWT::decode(
-                $jwt,
-                new Key(config('services.shopify.secret'), 'HS256')
-            );
-
-            $shop = str_replace('https://', '', $decoded->dest);
-
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Invalid session token'], 401);
+        if (!str_starts_with($authHeader, 'Bearer ')) {
+            return response()->json(['error' => 'Invalid Authorization format'], 401);
         }
+
+        $appToken = str_replace('Bearer ', '', $authHeader);
 
         /*
         |--------------------------------------------------------------------------
-        | 🏬 Step 2 — Get Shop Record
+        | 2️⃣ Find User Using app_token
+        |--------------------------------------------------------------------------
+        */
+
+        $user = User::where('app_token', $appToken)->first();
+
+        if (!$user) {
+            return response()->json(['error' => 'Invalid app token'], 401);
+        }
+
+        $shop = $user->shop_domain;
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3️⃣ Get Shop Record
         |--------------------------------------------------------------------------
         */
 
@@ -686,6 +692,45 @@ class OrderController extends Controller
                 'error' => 'Store not connected'
             ], 400);
         }
+        // /*
+        // |--------------------------------------------------------------------------
+        // | 🔐 Step 1 — Verify Shopify Session Token (JWT)
+        // |--------------------------------------------------------------------------
+        // */
+
+        // $authHeader = $request->header('Authorization');
+
+        // if (!$authHeader) {
+        //     return response()->json(['error' => 'Missing session token'], 401);
+        // }
+
+        // $jwt = str_replace('Bearer ', '', $authHeader);
+
+        // try {
+        //     $decoded = JWT::decode(
+        //         $jwt,
+        //         new Key(config('services.shopify.secret'), 'HS256')
+        //     );
+
+        //     $shop = str_replace('https://', '', $decoded->dest);
+
+        // } catch (\Exception $e) {
+        //     return response()->json(['error' => 'Invalid session token'], 401);
+        // }
+
+        // /*
+        // |--------------------------------------------------------------------------
+        // | 🏬 Step 2 — Get Shop Record
+        // |--------------------------------------------------------------------------
+        // */
+
+        // $shopRecord = Shop::where('shop_domain', $shop)->first();
+
+        // if (!$shopRecord || !$shopRecord->shopify_access_token) {
+        //     return response()->json([
+        //         'error' => 'Store not connected'
+        //     ], 400);
+        // }
 
         /*
         |--------------------------------------------------------------------------
@@ -1253,12 +1298,15 @@ class OrderController extends Controller
 
     public function pushOrders(Request $request)
     {
-        $request->validate([
-            'app_token' => 'required|string',
-            'orders'    => 'required|array|min:1',
-        ]);
+        $authHeader = $request->header('Authorization');
 
-        $user = User::where('app_token', $request->app_token)->first();
+        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $appToken = str_replace('Bearer ', '', $authHeader);
+
+        $user = User::where('app_token', $appToken)->first();
 
         if (!$user) {
             return response()->json(['error' => 'Invalid app token'], 401);
