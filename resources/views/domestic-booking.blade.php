@@ -65,6 +65,9 @@
 
                             {{-- Customer & Booking Info --}}
                             <div class="row gx-4 mb-4">
+
+                                {{-- Customer: Admin ko dropdown, Customer ko hidden --}}
+                                @if(auth()->user()->is_admin == 1 && auth()->user()->userRole == 1)
                                 <div class="col-md-4">
                                     <label class="form-label">Customer <span class="text-danger">*</span></label>
                                     <select name="customer_id" id="customerSelect" class="form-select" required>
@@ -76,6 +79,9 @@
                                         @endforeach
                                     </select>
                                 </div>
+                                @else
+                                <input type="hidden" name="customer_id" value="{{ auth()->id() }}">
+                                @endif
 
                                 <div class="col-md-4">
                                     <label class="form-label">Service</label>
@@ -115,13 +121,16 @@
                                     <select name="origin" class="form-select">
                                         <option disabled selected>Choose...</option>
                                         <option disabled selected>Pakistan</option>
-
                                     </select>
                                 </div>
+
                                 <div class="col-md-4">
                                     <label>Destination</label>
                                     <div class="position-relative">
-                                        <input type="text" id="citySearch" class="form-control" placeholder="Search city..." autocomplete="off">
+                                        <input type="text" id="citySearch" class="form-control"
+                                            placeholder="Search city..."
+                                            autocomplete="off"
+                                            value="{{ isset($booking) ? $booking->destination : '' }}">
                                         <ul id="cityDropdown" style="
             display:none;
             position:absolute;
@@ -156,13 +165,10 @@
                                         </ul>
                                     </div>
 
-                                    <input type="hidden" name="destination" id="destination" value="">
-                                    <input type="hidden" name="consignee_city_id" id="consignee_city_id" value="">
-                                    <input type="hidden" name="destination_source" id="destination_source" value="">
+                                    <input type="hidden" name="destination" id="destination" value="{{ isset($booking) ? $booking->destination : '' }}">
+                                    <input type="hidden" name="consignee_city_id" id="consignee_city_id" value="{{ isset($booking) ? $booking->consignee_city_id : '' }}">
+                                    <input type="hidden" name="destination_source" id="destination_source" value="{{ isset($booking) ? $booking->destination_source : '' }}">
                                 </div>
-
-
-
                             </div>
 
                             {{-- Dimensions & Shipment --}}
@@ -240,8 +246,6 @@
                               
                             </div> -->
 
-
-
                             {{-- Shipper & Consignee --}}
                             <!-- @foreach(['shipper', 'consignee'] as $type)
                             <div class="row gx-4 mb-4">
@@ -311,6 +315,36 @@
                                     <input type="text" name="rateType" class="form-control" value="{{ old('rateType', $booking->rateType ?? '') }}">
                                 </div>
                             </div> -->
+
+                            {{-- Consignee Fields: sirf Customer login par show hongi --}}
+                            @if(auth()->user()->is_admin == 0 && auth()->user()->userRole == 2)
+                            <div class="row gx-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Consignee Company</label>
+                                    <input type="text" name="consigneeCompany" class="form-control" value="{{ old('consigneeCompany', $booking->consigneeCompany ?? '') }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Consignee Name</label>
+                                    <input type="text" name="consigneeName" class="form-control" value="{{ old('consigneeName', $booking->consigneeName ?? '') }}">
+                                </div>
+                            </div>
+                            <div class="row gx-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Consignee Number</label>
+                                    <input type="text" name="consigneeNumber" class="form-control" value="{{ old('consigneeNumber', $booking->consigneeNumber ?? '') }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Consignee Email</label>
+                                    <input type="email" name="consigneeEmail" class="form-control" value="{{ old('consigneeEmail', $booking->consigneeEmail ?? '') }}">
+                                </div>
+                            </div>
+                            <div class="row gx-4 mb-4">
+                                <div class="col-md-12">
+                                    <label class="form-label">Consignee Address</label>
+                                    <textarea name="consigneeAddress" class="form-control" rows="3">{{ old('consigneeAddress', $booking->consigneeAddress ?? '') }}</textarea>
+                                </div>
+                            </div>
+                            @endif
 
                             <div class="text-end">
                                 <button type="submit" class="btn btn-primary">{{ isset($booking) ? 'Update' : 'Submit' }}</button>

@@ -16,21 +16,33 @@ class LoginController extends Controller
         return view('login'); // or whatever your login blade path is
     }
 
-    public function login(Request $request)
-    {
-        $credentials = $request->only('email', 'password');
+  public function login(Request $request)
+{
+    $credentials = $request->only('email', 'password');
 
-        if (Auth::attempt($credentials, $request->filled('remember'))) {
-            $user = Auth::user();
+    if (Auth::attempt($credentials, $request->filled('remember'))) {
+        $user = Auth::user();
 
-            return redirect('/'); // Or wherever you want to land
+        // Admin check
+        if ($user->is_admin == 1 && $user->userRole == 1) {
+            return redirect('/');
         }
 
+        // Customer check
+        if ($user->userRole == 2 && $user->is_admin == 0) {
+            return redirect('/');
+        }
+
+        Auth::logout();
         return back()->withErrors([
-            'email' => 'Invalid email or password.',
+            'email' => 'Unauthorized access.',
         ]);
     }
 
+    return back()->withErrors([
+        'email' => 'Invalid email or password.',
+    ]);
+}
     public function logout()
     {
         Auth::logout();

@@ -35,7 +35,7 @@ class BookingController extends Controller
     {
         // 1️⃣ Validate input
         $validated = $request->validate([
-            'customer_id'          => 'required|exists:customers,id',
+            'customer_id'          => 'required|nullable',
             'bookingType'          => 'required|in:domestic,export,import,cross_border',
             'service'              => 'nullable|in:overnight,overland',
             'bookChannel'          => 'nullable|in:facebook,whatsapp,instagram,others',
@@ -73,7 +73,7 @@ class BookingController extends Controller
             'salesPerson'          => 'nullable|exists:users,id',
             'territory'            => 'nullable|exists:users,id',
             'rateType'             => 'nullable',
-            'consignee_city_id'    => 'nullable', // Sonic city id
+            'consignee_city_id'    => 'nullable',
         ]);
 
         if (isset($validated['arrivalClearance'])) {
@@ -118,10 +118,15 @@ class BookingController extends Controller
         $validated['salesPerson'] = $request->input('territory', null);
 
         // 5️⃣ Customer data fetch karo
-        $customer = \App\Models\Customer::find($validated['customer_id']);
+        if (auth()->user()->is_admin == 1 && auth()->user()->userRole == 1) {
+            // Admin ne dropdown se select kiya
+            $customer = \App\Models\Customer::find($validated['customer_id']);
+        } else {
+            // Customer login - apni id se dhundo
+            $customer = \App\Models\Customer::where('id', auth()->id())->first();
+        }
 
         // 6️⃣ destination_source aur consignee_city_id ko validated se alag rakho
-        //    taake Booking::create() mein masla na ho
         $destinationSource = $request->input('destination_source');
         $consigneeCityId   = (int) $request->input('consignee_city_id', 0);
 
@@ -174,7 +179,6 @@ class BookingController extends Controller
                 $tranzoTracking = $tranzoData['tracking_number'];
                 $tranzoMessage  = " | Tranzo Tracking: {$tranzoTracking}";
 
-                // ✅ ThirdPartyBooking table mein save karo
                 \App\Models\ThirdPartyBooking::create([
                     'book_no'      => $bookNo,
                     'book_date'    => $validated['bookDate'],
@@ -244,7 +248,6 @@ class BookingController extends Controller
                 $trackingNo   = $sonicData['tracking_number'] ?? 'N/A';
                 $sonicMessage = " | Sonic Tracking: {$trackingNo}";
 
-                // ✅ ThirdPartyBooking table mein save karo
                 \App\Models\ThirdPartyBooking::create([
                     'book_no'      => $bookNo,
                     'book_date'    => $validated['bookDate'],
@@ -633,8 +636,13 @@ class BookingController extends Controller
     public function index(Request $request)
     {
         $query = Booking::with(['customer', 'statuses' => function ($q) {
-            $q->latest(); // get latest status
+            $q->latest();
         }]);
+
+        // Customer login ho tu sirf uski bookings dikhao
+        if (auth()->user()->is_admin == 0 && auth()->user()->userRole == 2) {
+            $query->where('customer_id', auth()->id());
+        }
 
         if ($request->filled('search')) {
             $query->where('bookNo', 'like', '%' . $request->search . '%');
@@ -666,6 +674,7 @@ class BookingController extends Controller
             'TPL' => 'Shipment Forwarded',
             'SHP' => 'Shipment has been Picked',
         ];
+
         // ✅ Prepare Grid Data for Blade
         $gridData = $bookings->map(function ($b) use ($statusLabels) {
             $latestStatus = $b->statuses->sortByDesc('created_at')->first();
@@ -673,25 +682,25 @@ class BookingController extends Controller
             $statusLabel = $statusLabels[$statusCode] ?? $statusCode ?? 'Pending';
 
             return [
-                'bookNo'             => $b->bookNo,
-                'bookDate'           => $b->bookDate,
-                'statusTime'         => $latestStatus?->created_at?->format('d-M-Y H:i:s') ?? '-',
-                'statusLabel'        => $statusLabel,
-                'customer'           => $b->customer->customer_name ?? '-',
-                'product'            => $b->bookingType ?? '-',
-                'service'            => $b->service ?? '-',
-                'itemContent'        => $b->itemContent ?? '-',
-                'origin'             => $b->origin ?? '-',
-                'destination'        => $b->destination ?? '-',
-                'weight'             => $b->weight ?? '0',
-                'pieces'             => $b->pieces ?? '0',
-                'orderNo'            => $b->orderNo ?? '-',
-                'shipperName'        => $b->shipperName ?? '-',
-                'shipperNumber'      => $b->shipperNumber ?? '-',
-                'shipperAddress'     => $b->shipperAddress ?? '-',
-                'consigneeName'      => $b->consigneeName ?? '-',
-                'consigneeNumber'    => $b->consigneeNumber ?? '-',
-                'consigneeAddress'   => $b->consigneeAddress ?? '-',
+                'bookNo'           => $b->bookNo,
+                'bookDate'         => $b->bookDate,
+                'statusTime'       => $latestStatus?->created_at?->format('d-M-Y H:i:s') ?? '-',
+                'statusLabel'      => $statusLabel,
+                'customer'         => $b->customer->customer_name ?? '-',
+                'product'          => $b->bookingType ?? '-',
+                'service'          => $b->service ?? '-',
+                'itemContent'      => $b->itemContent ?? '-',
+                'origin'           => $b->origin ?? '-',
+                'destination'      => $b->destination ?? '-',
+                'weight'           => $b->weight ?? '0',
+                'pieces'           => $b->pieces ?? '0',
+                'orderNo'          => $b->orderNo ?? '-',
+                'shipperName'      => $b->shipperName ?? '-',
+                'shipperNumber'    => $b->shipperNumber ?? '-',
+                'shipperAddress'   => $b->shipperAddress ?? '-',
+                'consigneeName'    => $b->consigneeName ?? '-',
+                'consigneeNumber'  => $b->consigneeNumber ?? '-',
+                'consigneeAddress' => $b->consigneeAddress ?? '-',
             ];
         });
         // dd($gridData);
@@ -705,19 +714,64 @@ class BookingController extends Controller
         $customers = Customer::all();
         $users = User::all();
 
-        // Get country id for Pakistan
-        $pakistan = Country::where('name', 'Pakistan')->first();
+        // Existing Tranzo API
+        $tranzoCities = [];
+        $tranzoResponse = Http::withHeaders([
+            'api-token'    => '09f4924c715a474385938f7fef946e04',
+            'Content-Type' => 'application/json',
+        ])->get('https://api-integration.tranzo.pk/api/custom/v1/get-operational-cities/');
 
-        if ($pakistan) {
-            $cities = City::where('country_id', $pakistan->id)->get();
-        } else {
-            $cities = collect(); // empty collection if Pakistan not found
+        if ($tranzoResponse->successful()) {
+            $tranzoCities = $tranzoResponse->json();
         }
 
-        return view('domestic-booking', compact('booking', 'customers', 'cities', 'users'))
+        // New Sonic API
+        $sonicCities = [];
+        $sonicResponse = Http::withHeaders([
+            'Accept'        => 'application/json',
+            'Content-Type'  => 'application/json',
+            'Authorization' => 'aWNSR1VFYjBwcnhvRmp2T1RqRWpmOE9nMVNHNGdMVkc5aGp4VEdub29KYnF5WTdFajhKSHhrQ3Nlc214698b61c3af9b9',
+        ])->get('https://sonic.pk/api/cities');
+
+        if ($sonicResponse->successful()) {
+            $sonicData = $sonicResponse->json();
+            \Log::info('Sonic Cities Raw Response', ['data' => array_slice($sonicData, 0, 3)]);
+            $rawSonic  = isset($sonicData['cities']) ? $sonicData['cities'] : $sonicData;
+
+            foreach ($rawSonic as $city) {
+                $cityName = $city['name'] ?? $city['city_name'] ?? null;
+                $cityId   = $city['id'] ?? $city['city_id'] ?? '';
+                if ($cityName) {
+                    $sonicCities[] = [
+                        'city_name' => $cityName,
+                        'id'        => $cityId,
+                        'source'    => 'sonic',
+                    ];
+                }
+            }
+        }
+
+        // Tranzo cities mein source add karein
+        $tranzoCitiesTagged = array_map(function ($city) {
+            $city['source'] = 'tranzo';
+            return $city;
+        }, $tranzoCities);
+
+        // Dono merge karein - unique city names
+        $allCities     = $tranzoCitiesTagged;
+        $existingNames = array_column($tranzoCitiesTagged, 'city_name');
+
+        foreach ($sonicCities as $sonicCity) {
+            if (!in_array($sonicCity['city_name'], $existingNames)) {
+                $allCities[] = $sonicCity;
+            }
+        }
+
+        $cities = $allCities;
+
+        return view('domestic-booking', compact('booking', 'customers', 'users', 'cities', 'tranzoCities', 'sonicCities'))
             ->with('bookingType', 'domestic');
     }
-
 
     public function editExport($id)
     {
@@ -760,7 +814,7 @@ class BookingController extends Controller
         // Validate request
         $validated = $request->validate([
             'customer_id'         => 'required|exists:customers,id',
-            'service'             => 'nullable|in:document,express',
+            'service'              => 'nullable|in:overnight,overland',
             'bookChannel'         => 'nullable|in:facebook,whatsapp,instagram,others',
             'paymentMode'         => 'nullable|in:cod,non_cod',
             'origin'              => 'nullable',
@@ -1902,10 +1956,25 @@ class BookingController extends Controller
         $lastWeekOrders = \App\Models\Booking::whereBetween('created_at', [now()->subWeek(), now()])->count();
         $percentChange = $lastWeekOrders ? round((($totalOrders - $lastWeekOrders) / $lastWeekOrders) * 100, 2) : 0;
 
+        $user = auth()->user();
+
         // Logged-in user permissions
-        $userPermissions = auth()->user()?->is_admin
-            ? ['dashboard', 'booking', 'reports', 'financials', 'master-setup', 'book-tracking', 'label-print', 'operation']
-            : auth()->user()?->permissions ?? [];
+        if ($user?->is_admin == 1) {
+            // Admin - sab permissions
+            $userPermissions = ['dashboard', 'booking', 'reports', 'financials', 'master-setup', 'book-tracking', 'label-print', 'operation'];
+        } else {
+            // Customer - permissions parse karo
+            $permissions = $user?->permissions;
+
+            if (is_string($permissions)) {
+                $decoded = json_decode($permissions, true);
+                $userPermissions = is_array($decoded) ? $decoded : [];
+            } elseif (is_array($permissions)) {
+                $userPermissions = $permissions;
+            } else {
+                $userPermissions = [];
+            }
+        }
 
         // Pass data to the dashboard view
         return view('dashboard.index', compact('totalOrders', 'pendingOrders', 'deliveredOrders', 'percentChange', 'userPermissions'));
