@@ -777,11 +777,6 @@ class OrderController extends Controller
                         name
                         createdAt
                         note
-                        currentTotalLineItemsQuantity
-                        noteAttributes {
-                            name
-                            value
-                        }
                         displayFinancialStatus
                         displayFulfillmentStatus
                         totalPriceSet {
@@ -894,55 +889,57 @@ class OrderController extends Controller
 
             $node = $edge['node'];
 
-            $shippingAddress = $node['shippingAddress'] ?? [];
-            $billingAddress  = $node['billingAddress'] ?? [];
+            $shipping = $node['shippingAddress'] ?? [];
+            $billing  = $node['billingAddress'] ?? [];
 
             return [
+                'id' => $node['id'],
+                'order_number' => $node['name'],
+                'created_at' => $node['createdAt'],
 
-                'id' => $node['id'] ?? null,
-                'order_number' => $node['name'] ?? null,
-                'created_at' => $node['createdAt'] ?? null,
+                'financial_status' => $node['displayFinancialStatus'],
+                'fulfillment_status' => $node['displayFulfillmentStatus'],
 
-                'financial_status' => $node['displayFinancialStatus'] ?? null,
-                'fulfillment_status' => $node['displayFulfillmentStatus'] ?? null,
-
-                'amount' => $node['totalPriceSet']['shopMoney']['amount'] ?? 0,
-                'currency' => $node['totalPriceSet']['shopMoney']['currencyCode'] ?? null,
+                'amount' => $node['totalPriceSet']['shopMoney']['amount'],
+                'currency' => $node['totalPriceSet']['shopMoney']['currencyCode'],
 
                 // ✅ Order Note
                 'order_note' => $node['note'] ?? '',
 
-                // ✅ Country (Shipping → Billing fallback)
-                'country' => $shippingAddress['country'] 
-                                ?? $billingAddress['country'] 
+                // ✅ Custom Checkout Attributes
+                'custom_attributes' => collect($node['customAttributes'] ?? [])
+                    ->map(fn($attr) => [
+                        'key' => $attr['key'],
+                        'value' => $attr['value'],
+                    ])->values(),
+
+                // ✅ Reliable Country
+                'country' => $shipping['country'] 
+                                ?? $billing['country'] 
                                 ?? '',
 
-                // ✅ Shopify-style Items Count
-                'items_count' => $node['currentTotalLineItemsQuantity'] ?? 0,
+                // ✅ Correct Items Count
+                'items_count' => $node['lineItems']['totalCount'] ?? 0,
 
-                // ✅ Shipping Info
                 'shipping' => [
-                    'name'     => $shippingAddress['name'] ?? '',
-                    'address1' => $shippingAddress['address1'] ?? '',
-                    'city'     => $shippingAddress['city'] ?? '',
-                    'province' => $shippingAddress['province'] ?? '',
-                    'country'  => $shippingAddress['country'] 
-                                    ?? $billingAddress['country'] 
-                                    ?? '',
-                    'zip'      => $shippingAddress['zip'] ?? '',
-                    'phone'    => $shippingAddress['phone'] ?? '',
+                    'name'     => $shipping['name'] ?? '',
+                    'address1' => $shipping['address1'] ?? '',
+                    'city'     => $shipping['city'] ?? '',
+                    'province' => $shipping['province'] ?? '',
+                    'country'  => $shipping['country'] ?? '',
+                    'zip'      => $shipping['zip'] ?? '',
+                    'phone'    => $shipping['phone'] ?? '',
                 ],
 
-                // ✅ Line Items List
                 'items' => collect($node['lineItems']['edges'] ?? [])
                     ->map(function ($item) {
                         return [
-                            'title'    => $item['node']['title'] ?? '',
-                            'quantity' => $item['node']['quantity'] ?? 0,
+                            'title' => $item['node']['title'],
+                            'quantity' => $item['node']['quantity'],
                         ];
                     })->values(),
 
-                'cursor' => $edge['cursor'] ?? null,
+                'cursor' => $edge['cursor']
             ];
         })
         ->values();
