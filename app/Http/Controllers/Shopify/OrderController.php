@@ -1841,7 +1841,7 @@ class OrderController extends Controller
                     'bookingType'        => 'domestic',
                     'paymentMode'        => $paymentMode,
                     'destination'        => $order['city'],
-                    'destinationCountry' => 'Canada',
+                    'destinationCountry' => 'Pakistan',
                     'invoiceValue'       => $order['cod'],
                     'weight'             => $order['kg'] ?? 1,
                     'pieces'             => 1,
