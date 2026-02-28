@@ -1977,7 +1977,7 @@ class OrderController extends Controller
                                 'consignee_phone_number_1'   => $order['phone'],
                                 'order_id'                   => $bookNo,
                                 'item_product_type_id'       => 1,
-                                'item_product_type_id'       => "No Comment",
+                                'item_description'       => "No Comment",
                                 'item_quantity'              => 1,
                                 'item_insurance'             => 0,
                                 'item_price'                 => (int)$order['cod'],
