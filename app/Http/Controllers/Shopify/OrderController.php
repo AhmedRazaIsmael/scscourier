@@ -1797,7 +1797,8 @@ class OrderController extends Controller
                 |--------------------------------------------------------------------------
                 */
 
-                if ($paymentMode === 'cod') {
+                $orderfulfilled = false;
+                if ($orderfulfilled == false) {
 
                     if ($cityName === 'karachi') {
 
@@ -1900,6 +1901,8 @@ class OrderController extends Controller
 
                             $sonicPayload = [
                                 'service_type_id'            => 1,
+                                'amount'                     => (int)$order['cod'] ?? 0,
+                                'parcel_value'               => (int)$order['cod'] ?? 0,
                                 'pickup_address_id'          => 617025,
                                 'information_display'        => 0,
                                 'consignee_city_id'          => $sonicCityId,
@@ -1907,13 +1910,17 @@ class OrderController extends Controller
                                 'consignee_address'          => $order['address'],
                                 'consignee_phone_number_1'   => $order['phone'],
                                 'order_id'                   => $bookNo,
+                                'item_product_type_id'       => 1,
+                                'item_product_type_id'       => "No Comment",
                                 'item_quantity'              => 1,
+                                'item_insurance'             => 0,
                                 'item_price'                 => (int)$order['cod'],
                                 'pickup_date'                => now()->toDateString(),
                                 'estimated_weight'           => (float)($order['kg'] ?? 1),
                                 'payment_mode_id'            => 1,
                                 'charges_mode_id'            => 2,
                                 'open_box'                   => 0,
+                                'shipping_mode_id'           => 1,
                                 'shipper_reference_number_1' => $bookNo,
                             ];
 
