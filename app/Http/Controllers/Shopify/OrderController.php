@@ -1420,13 +1420,264 @@ class OrderController extends Controller
     //     ]);
     // }
 
+    // public function pushOrders(Request $request)
+    // {
+    //     \Log::info('PushOrders API called');
+
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 1️⃣ Authenticate Using app_token
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     $authHeader = $request->header('Authorization');
+
+    //     if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+    //         \Log::warning('Unauthorized request - Missing Bearer token');
+    //         return response()->json(['error' => 'Unauthorized'], 401);
+    //     }
+
+    //     $appToken = str_replace('Bearer ', '', $authHeader);
+
+    //     $user = User::where('app_token', $appToken)->first();
+
+    //     if (!$user) {
+    //         \Log::warning('Invalid app token used');
+    //         return response()->json(['error' => 'Invalid app token'], 401);
+    //     }
+
+    //     $customerId = $user->id;
+    //     $createdBookings = [];
+
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | 2️⃣ Process Orders
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     foreach ($request->orders as $order) {
+
+    //         try {
+
+    //             if (empty($order['shipping'])) {
+    //                 \Log::warning('Skipping order - No shipping address', $order);
+    //                 continue;
+    //             }
+
+    //             $orderNo = ltrim($order['order_number'], '#');
+
+    //             \Log::info('Processing Order', ['order_no' => $orderNo]);
+
+    //             if (Booking::where('orderNo', $orderNo)->exists()) {
+    //                 \Log::info('Skipping duplicate booking', ['order_no' => $orderNo]);
+    //                 continue;
+    //             }
+
+    //             /*
+    //             |--------------------------------------------------------------------------
+    //             | 3️⃣ Generate Booking Number
+    //             |--------------------------------------------------------------------------
+    //             */
+
+    //             $typeCode = '01';
+    //             $prefix  = 'AB';
+    //             $year    = date('y');
+    //             $month   = date('m');
+    //             $random  = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+    //             $bookNo  = "{$prefix}{$year}{$month}{$typeCode}{$random}";
+
+    //             $paymentMode = $order['financial_status'] === 'PAID'
+    //                 ? 'non_cod'
+    //                 : 'cod';
+
+    //             /*
+    //             |--------------------------------------------------------------------------
+    //             | 4️⃣ Create Booking
+    //             |--------------------------------------------------------------------------
+    //             */
+
+    //             Booking::create([
+    //                 'customer_id'        => $customerId,
+    //                 'bookingType'        => 'domestic',
+    //                 'paymentMode'        => $paymentMode,
+    //                 'destination'        => $order['shipping']['city'] ?? '',
+    //                 'destinationCountry' => $order['shipping']['country'] ?? '',
+    //                 'invoiceValue'       => $order['amount'],
+    //                 'weight'             => 1,
+    //                 'pieces'             => 1,
+    //                 'orderNo'            => $orderNo,
+    //                 'consigneeName'      => $order['shipping']['name'] ?? '',
+    //                 'consigneeNumber'    => $order['shipping']['phone'] ?? '',
+    //                 'consigneeAddress'   => $order['shipping']['address1'] ?? '',
+    //                 'bookNo'             => $bookNo,
+    //                 'bookDate'           => now()->toDateString(),
+    //             ]);
+
+    //             \Log::info('Booking Created', ['book_no' => $bookNo]);
+
+    //             /*
+    //             |--------------------------------------------------------------------------
+    //             | 🔥 TRANZO INTEGRATION
+    //             |--------------------------------------------------------------------------
+    //             */
+
+    //             if ($paymentMode === 'cod') {
+
+    //                 $tranzoPayload = [
+    //                     'reference_number' => $bookNo,
+    //                     'customer_name'    => $order['shipping']['name'] ?? '',
+    //                     'customer_phone'   => $order['shipping']['phone'] ?? '',
+    //                     'destination_city' => $order['shipping']['city'] ?? '',
+    //                     'delivery_address' => $order['shipping']['address1'] ?? '',
+    //                     'cod_amount'       => (int)$order['amount'],
+    //                     'booking_weight'   => 1,
+    //                     'total_items'      => 1,
+    //                 ];
+
+    //                 \Log::info('Sending Tranzo Request', [
+    //                     'book_no' => $bookNo,
+    //                     'payload' => $tranzoPayload
+    //                 ]);
+
+    //                 $tranzoResponse = Http::withHeaders([
+    //                     'Accept'       => 'application/json',
+    //                     'Content-Type' => 'application/json',
+    //                     'api-token'    => '09f4924c715a474385938f7fef946e04',
+    //                 ])->post(
+    //                     'https://api-integration.tranzo.pk/api/custom/v1/create-order/',
+    //                     $tranzoPayload
+    //                 );
+
+    //                 $tranzoData = $tranzoResponse->json();
+
+    //                 \Log::info('Tranzo Response', [
+    //                     'book_no' => $bookNo,
+    //                     'status'  => $tranzoResponse->status(),
+    //                     'response'=> $tranzoData
+    //                 ]);
+
+    //                 if (isset($tranzoData['tracking_number'])) {
+
+    //                     \App\Models\ThirdPartyBooking::create([
+    //                         'book_no'      => $bookNo,
+    //                         'book_date'    => now()->toDateString(),
+    //                         'company_name' => 'Tranzo',
+    //                         'ref_no'       => $tranzoData['tracking_number'],
+    //                         'remarks'      => 'Auto booked via Shopify Push',
+    //                         'updated_by'   => null,
+    //                     ]);
+
+    //                 } else {
+    //                     \Log::error('Tranzo Booking Failed', [
+    //                         'book_no' => $bookNo,
+    //                         'response'=> $tranzoData
+    //                     ]);
+    //                 }
+
+    //                 /*
+    //                 |--------------------------------------------------------------------------
+    //                 | 🔥 SONIC INTEGRATION
+    //                 |--------------------------------------------------------------------------
+    //                 */
+
+    //                 // ⚠ You MUST map city to Sonic city ID properly
+    //                 $consigneeCityId = 123; // Replace with dynamic mapping
+
+    //                 if ($consigneeCityId > 0) {
+
+    //                     $sonicPayload = [
+    //                         'service_type_id'            => 1,
+    //                         'pickup_address_id'          => 617025,
+    //                         'information_display'        => 0,
+    //                         'consignee_city_id'          => $consigneeCityId,
+    //                         'consignee_name'             => $order['shipping']['name'] ?? '',
+    //                         'consignee_address'          => $order['shipping']['address1'] ?? '',
+    //                         'consignee_phone_number_1'   => $order['shipping']['phone'] ?? '',
+    //                         'order_id'                   => $bookNo,
+    //                         'item_product_type_id'       => 1,
+    //                         'item_description'           => 'Shopify Order',
+    //                         'item_quantity'              => 1,
+    //                         'item_insurance'             => 0,
+    //                         'item_price'                 => (int)$order['amount'],
+    //                         'pickup_date'                => now()->toDateString(),
+    //                         'special_instructions'       => '',
+    //                         'estimated_weight'           => 1,
+    //                         'shipping_mode_id'           => 1,
+    //                         'amount'                     => (int)$order['amount'],
+    //                         'parcel_value'               => (int)$order['amount'],
+    //                         'payment_mode_id'            => 1,
+    //                         'charges_mode_id'            => 2,
+    //                         'open_box'                   => 0,
+    //                         'pieces_quantity'            => 1,
+    //                         'shipper_reference_number_1' => $bookNo,
+    //                     ];
+
+    //                     \Log::info('Sending Sonic Request', [
+    //                         'book_no' => $bookNo,
+    //                         'payload' => $sonicPayload
+    //                     ]);
+
+    //                     $sonicResponse = Http::withHeaders([
+    //                         'Authorization' => 'YOUR_SONIC_API_KEY',
+    //                         'Content-Type'  => 'application/json',
+    //                         'Accept'        => 'application/json',
+    //                     ])->post('https://sonic.pk/api/shipment/book', $sonicPayload);
+
+    //                     $sonicData = $sonicResponse->json();
+
+    //                     \Log::info('Sonic Response', [
+    //                         'book_no' => $bookNo,
+    //                         'status'  => $sonicResponse->status(),
+    //                         'response'=> $sonicData
+    //                     ]);
+
+    //                     if (isset($sonicData['status']) && $sonicData['status'] == 0) {
+
+    //                         \App\Models\ThirdPartyBooking::create([
+    //                             'book_no'      => $bookNo,
+    //                             'book_date'    => now()->toDateString(),
+    //                             'company_name' => 'Sonic',
+    //                             'ref_no'       => $sonicData['tracking_number'] ?? 'N/A',
+    //                             'remarks'      => 'Auto booked via Shopify Push',
+    //                             'updated_by'   => null,
+    //                         ]);
+
+    //                     } else {
+    //                         \Log::error('Sonic Booking Failed', [
+    //                             'book_no' => $bookNo,
+    //                             'response'=> $sonicData
+    //                         ]);
+    //                     }
+    //                 }
+    //             }
+
+    //             $createdBookings[] = [
+    //                 'shopify_order' => $orderNo,
+    //                 'booking_no'    => $bookNo
+    //             ];
+
+    //         } catch (\Exception $e) {
+
+    //             \Log::error('Error Processing Order', [
+    //                 'order' => $order,
+    //                 'error' => $e->getMessage()
+    //             ]);
+    //         }
+    //     }
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'bookings_created' => $createdBookings
+    //     ]);
+    // }
+
     public function pushOrders(Request $request)
     {
-        \Log::info('PushOrders API called');
+        \Log::info('PushOrders API called', $request->all());
 
         /*
         |--------------------------------------------------------------------------
-        | 1️⃣ Authenticate Using app_token
+        | 1️⃣ Authenticate Using app_token (Bearer)
         |--------------------------------------------------------------------------
         */
 
@@ -1459,15 +1710,17 @@ class OrderController extends Controller
 
             try {
 
-                if (empty($order['shipping'])) {
-                    \Log::warning('Skipping order - No shipping address', $order);
+                // Validate required fields from your new payload
+                if (empty($order['address']) || empty($order['city'])) {
+                    \Log::warning('Skipping order - Missing address or city', $order);
                     continue;
                 }
 
-                $orderNo = ltrim($order['order_number'], '#');
+                $orderNo = ltrim($order['orderNumber'], '#');
 
                 \Log::info('Processing Order', ['order_no' => $orderNo]);
 
+                // Prevent duplicate booking
                 if (Booking::where('orderNo', $orderNo)->exists()) {
                     \Log::info('Skipping duplicate booking', ['order_no' => $orderNo]);
                     continue;
@@ -1475,7 +1728,7 @@ class OrderController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
-                | 3️⃣ Generate Booking Number
+                | 3️⃣ Generate Booking Number (Same Logic as store())
                 |--------------------------------------------------------------------------
                 */
 
@@ -1486,7 +1739,7 @@ class OrderController extends Controller
                 $random  = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
                 $bookNo  = "{$prefix}{$year}{$month}{$typeCode}{$random}";
 
-                $paymentMode = $order['financial_status'] === 'PAID'
+                $paymentMode = strtolower($order['financialStatus']) === 'paid'
                     ? 'non_cod'
                     : 'cod';
 
@@ -1500,20 +1753,20 @@ class OrderController extends Controller
                     'customer_id'        => $customerId,
                     'bookingType'        => 'domestic',
                     'paymentMode'        => $paymentMode,
-                    'destination'        => $order['shipping']['city'] ?? '',
-                    'destinationCountry' => $order['shipping']['country'] ?? '',
-                    'invoiceValue'       => $order['amount'],
-                    'weight'             => 1,
+                    'destination'        => $order['city'],
+                    'destinationCountry' => 'Canada', // make dynamic if needed
+                    'invoiceValue'       => $order['cod'],
+                    'weight'             => $order['kg'] ?? 1,
                     'pieces'             => 1,
                     'orderNo'            => $orderNo,
-                    'consigneeName'      => $order['shipping']['name'] ?? '',
-                    'consigneeNumber'    => $order['shipping']['phone'] ?? '',
-                    'consigneeAddress'   => $order['shipping']['address1'] ?? '',
+                    'consigneeName'      => $order['name'] ?? '',
+                    'consigneeNumber'    => $order['phone'] ?? '',
+                    'consigneeAddress'   => $order['address'] ?? '',
                     'bookNo'             => $bookNo,
                     'bookDate'           => now()->toDateString(),
                 ]);
 
-                \Log::info('Booking Created', ['book_no' => $bookNo]);
+                \Log::info('Booking Created Successfully', ['book_no' => $bookNo]);
 
                 /*
                 |--------------------------------------------------------------------------
@@ -1525,12 +1778,12 @@ class OrderController extends Controller
 
                     $tranzoPayload = [
                         'reference_number' => $bookNo,
-                        'customer_name'    => $order['shipping']['name'] ?? '',
-                        'customer_phone'   => $order['shipping']['phone'] ?? '',
-                        'destination_city' => $order['shipping']['city'] ?? '',
-                        'delivery_address' => $order['shipping']['address1'] ?? '',
-                        'cod_amount'       => (int)$order['amount'],
-                        'booking_weight'   => 1,
+                        'customer_name'    => $order['name'] ?? '',
+                        'customer_phone'   => $order['phone'] ?? '',
+                        'destination_city' => $order['city'],
+                        'delivery_address' => $order['address'],
+                        'cod_amount'       => (int)$order['cod'],
+                        'booking_weight'   => (float)($order['kg'] ?? 1),
                         'total_items'      => 1,
                     ];
 
@@ -1580,96 +1833,101 @@ class OrderController extends Controller
                     |--------------------------------------------------------------------------
                     */
 
-                    // ⚠ You MUST map city to Sonic city ID properly
-                    $consigneeCityId = 123; // Replace with dynamic mapping
+                    // ⚠ Replace with real city mapping logic
+                    $cityMap = [
+                        'Toronto' => 1,
+                        'Karachi' => 2,
+                    ];
 
-                    if ($consigneeCityId > 0) {
+                $consigneeCityId = $cityMap[$order['city']] ?? 0;
 
-                        $sonicPayload = [
-                            'service_type_id'            => 1,
-                            'pickup_address_id'          => 617025,
-                            'information_display'        => 0,
-                            'consignee_city_id'          => $consigneeCityId,
-                            'consignee_name'             => $order['shipping']['name'] ?? '',
-                            'consignee_address'          => $order['shipping']['address1'] ?? '',
-                            'consignee_phone_number_1'   => $order['shipping']['phone'] ?? '',
-                            'order_id'                   => $bookNo,
-                            'item_product_type_id'       => 1,
-                            'item_description'           => 'Shopify Order',
-                            'item_quantity'              => 1,
-                            'item_insurance'             => 0,
-                            'item_price'                 => (int)$order['amount'],
-                            'pickup_date'                => now()->toDateString(),
-                            'special_instructions'       => '',
-                            'estimated_weight'           => 1,
-                            'shipping_mode_id'           => 1,
-                            'amount'                     => (int)$order['amount'],
-                            'parcel_value'               => (int)$order['amount'],
-                            'payment_mode_id'            => 1,
-                            'charges_mode_id'            => 2,
-                            'open_box'                   => 0,
-                            'pieces_quantity'            => 1,
-                            'shipper_reference_number_1' => $bookNo,
-                        ];
+                if ($consigneeCityId > 0) {
 
-                        \Log::info('Sending Sonic Request', [
-                            'book_no' => $bookNo,
-                            'payload' => $sonicPayload
+                    $sonicPayload = [
+                        'service_type_id'            => 1,
+                        'pickup_address_id'          => 617025,
+                        'information_display'        => 0,
+                        'consignee_city_id'          => $consigneeCityId,
+                        'consignee_name'             => $order['name'],
+                        'consignee_address'          => $order['address'],
+                        'consignee_phone_number_1'   => $order['phone'],
+                        'order_id'                   => $bookNo,
+                        'item_product_type_id'       => 1,
+                        'item_description'           => 'Shopify Order',
+                        'item_quantity'              => 1,
+                        'item_insurance'             => 0,
+                        'item_price'                 => (int)$order['cod'],
+                        'pickup_date'                => now()->toDateString(),
+                        'special_instructions'       => '',
+                        'estimated_weight'           => (float)($order['kg'] ?? 1),
+                        'shipping_mode_id'           => 1,
+                        'amount'                     => (int)$order['cod'],
+                        'parcel_value'               => (int)$order['cod'],
+                        'payment_mode_id'            => 1,
+                        'charges_mode_id'            => 2,
+                        'open_box'                   => 0,
+                        'pieces_quantity'            => 1,
+                        'shipper_reference_number_1' => $bookNo,
+                    ];
+
+                    \Log::info('Sending Sonic Request', [
+                        'book_no' => $bookNo,
+                        'payload' => $sonicPayload
+                    ]);
+
+                    $sonicResponse = Http::withHeaders([
+                        'Authorization' => 'YOUR_SONIC_API_KEY',
+                        'Content-Type'  => 'application/json',
+                        'Accept'        => 'application/json',
+                    ])->post('https://sonic.pk/api/shipment/book', $sonicPayload);
+
+                    $sonicData = $sonicResponse->json();
+
+                    \Log::info('Sonic Response', [
+                        'book_no' => $bookNo,
+                        'status'  => $sonicResponse->status(),
+                        'response'=> $sonicData
+                    ]);
+
+                    if (isset($sonicData['status']) && $sonicData['status'] == 0) {
+
+                        \App\Models\ThirdPartyBooking::create([
+                            'book_no'      => $bookNo,
+                            'book_date'    => now()->toDateString(),
+                            'company_name' => 'Sonic',
+                            'ref_no'       => $sonicData['tracking_number'] ?? 'N/A',
+                            'remarks'      => 'Auto booked via Shopify Push',
+                            'updated_by'   => null,
                         ]);
 
-                        $sonicResponse = Http::withHeaders([
-                            'Authorization' => 'YOUR_SONIC_API_KEY',
-                            'Content-Type'  => 'application/json',
-                            'Accept'        => 'application/json',
-                        ])->post('https://sonic.pk/api/shipment/book', $sonicPayload);
-
-                        $sonicData = $sonicResponse->json();
-
-                        \Log::info('Sonic Response', [
+                    } else {
+                        \Log::error('Sonic Booking Failed', [
                             'book_no' => $bookNo,
-                            'status'  => $sonicResponse->status(),
                             'response'=> $sonicData
                         ]);
-
-                        if (isset($sonicData['status']) && $sonicData['status'] == 0) {
-
-                            \App\Models\ThirdPartyBooking::create([
-                                'book_no'      => $bookNo,
-                                'book_date'    => now()->toDateString(),
-                                'company_name' => 'Sonic',
-                                'ref_no'       => $sonicData['tracking_number'] ?? 'N/A',
-                                'remarks'      => 'Auto booked via Shopify Push',
-                                'updated_by'   => null,
-                            ]);
-
-                        } else {
-                            \Log::error('Sonic Booking Failed', [
-                                'book_no' => $bookNo,
-                                'response'=> $sonicData
-                            ]);
-                        }
                     }
                 }
-
-                $createdBookings[] = [
-                    'shopify_order' => $orderNo,
-                    'booking_no'    => $bookNo
-                ];
-
-            } catch (\Exception $e) {
-
-                \Log::error('Error Processing Order', [
-                    'order' => $order,
-                    'error' => $e->getMessage()
-                ]);
             }
-        }
 
-        return response()->json([
-            'success' => true,
-            'bookings_created' => $createdBookings
-        ]);
+            $createdBookings[] = [
+                'shopify_order' => $orderNo,
+                'booking_no'    => $bookNo
+            ];
+
+        } catch (\Exception $e) {
+
+            \Log::error('Error Processing Order', [
+                'order' => $order,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
+
+    return response()->json([
+        'success' => true,
+        'bookings_created' => $createdBookings
+    ]);
+}
 
     
 }
