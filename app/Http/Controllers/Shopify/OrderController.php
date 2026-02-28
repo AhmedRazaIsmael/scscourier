@@ -776,6 +776,12 @@ class OrderController extends Controller
                         id
                         name
                         createdAt
+                        note
+                        currentTotalLineItemsQuantity
+                        noteAttributes {
+                            name
+                            value
+                        }
                         displayFinancialStatus
                         displayFulfillmentStatus
                         totalPriceSet {
@@ -793,6 +799,9 @@ class OrderController extends Controller
                             zip
                             phone
                         }
+                        billingAddress {
+                            country
+                        }    
                         lineItems(first: 25) {
                             edges {
                                 node {
@@ -848,37 +857,95 @@ class OrderController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $orders = collect($data['data']['orders']['edges'])
-            ->map(function ($edge) {
-                $node = $edge['node'];
+        // $orders = collect($data['data']['orders']['edges'])
+        //     ->map(function ($edge) {
+        //         $node = $edge['node'];
 
-                return [
-                    'id' => $node['id'],
-                    'order_number' => $node['name'],
-                    'created_at' => $node['createdAt'],
-                    'financial_status' => $node['displayFinancialStatus'],
-                    'fulfillment_status' => $node['displayFulfillmentStatus'],
-                    'amount' => $node['totalPriceSet']['shopMoney']['amount'],
-                    'currency' => $node['totalPriceSet']['shopMoney']['currencyCode'],
-                    'shipping' => [
-                        'name' => $node['shippingAddress']['name'] ?? '',
-                        'address1' => $node['shippingAddress']['address1'] ?? '',
-                        'city' => $node['shippingAddress']['city'] ?? '',
-                        'province' => $node['shippingAddress']['province'] ?? '',
-                        'country' => $node['shippingAddress']['country'] ?? '',
-                        'zip' => $node['shippingAddress']['zip'] ?? '',
-                        'phone' => $node['shippingAddress']['phone'] ?? '',
-                    ],
-                    'items' => collect($node['lineItems']['edges'])
-                        ->map(function ($item) {
-                            return [
-                                'title' => $item['node']['title'],
-                                'quantity' => $item['node']['quantity'],
-                            ];
-                        })->values(),
-                    'cursor' => $edge['cursor']
-                ];
-            })->values();
+        //         return [
+        //             'id' => $node['id'],
+        //             'order_number' => $node['name'],
+        //             'created_at' => $node['createdAt'],
+        //             'financial_status' => $node['displayFinancialStatus'],
+        //             'fulfillment_status' => $node['displayFulfillmentStatus'],
+        //             'amount' => $node['totalPriceSet']['shopMoney']['amount'],
+        //             'currency' => $node['totalPriceSet']['shopMoney']['currencyCode'],
+        //             'shipping' => [
+        //                 'name' => $node['shippingAddress']['name'] ?? '',
+        //                 'address1' => $node['shippingAddress']['address1'] ?? '',
+        //                 'city' => $node['shippingAddress']['city'] ?? '',
+        //                 'province' => $node['shippingAddress']['province'] ?? '',
+        //                 'country' => $node['shippingAddress']['country'] ?? '',
+        //                 'zip' => $node['shippingAddress']['zip'] ?? '',
+        //                 'phone' => $node['shippingAddress']['phone'] ?? '',
+        //             ],
+        //             'items' => collect($node['lineItems']['edges'])
+        //                 ->map(function ($item) {
+        //                     return [
+        //                         'title' => $item['node']['title'],
+        //                         'quantity' => $item['node']['quantity'],
+        //                     ];
+        //                 })->values(),
+        //             'cursor' => $edge['cursor']
+        //         ];
+        //     })->values();
+
+        $orders = collect($data['data']['orders']['edges'])
+        ->map(function ($edge) {
+
+            $node = $edge['node'];
+
+            $shippingAddress = $node['shippingAddress'] ?? [];
+            $billingAddress  = $node['billingAddress'] ?? [];
+
+            return [
+
+                'id' => $node['id'] ?? null,
+                'order_number' => $node['name'] ?? null,
+                'created_at' => $node['createdAt'] ?? null,
+
+                'financial_status' => $node['displayFinancialStatus'] ?? null,
+                'fulfillment_status' => $node['displayFulfillmentStatus'] ?? null,
+
+                'amount' => $node['totalPriceSet']['shopMoney']['amount'] ?? 0,
+                'currency' => $node['totalPriceSet']['shopMoney']['currencyCode'] ?? null,
+
+                // ✅ Order Note
+                'order_note' => $node['note'] ?? '',
+
+                // ✅ Country (Shipping → Billing fallback)
+                'country' => $shippingAddress['country'] 
+                                ?? $billingAddress['country'] 
+                                ?? '',
+
+                // ✅ Shopify-style Items Count
+                'items_count' => $node['currentTotalLineItemsQuantity'] ?? 0,
+
+                // ✅ Shipping Info
+                'shipping' => [
+                    'name'     => $shippingAddress['name'] ?? '',
+                    'address1' => $shippingAddress['address1'] ?? '',
+                    'city'     => $shippingAddress['city'] ?? '',
+                    'province' => $shippingAddress['province'] ?? '',
+                    'country'  => $shippingAddress['country'] 
+                                    ?? $billingAddress['country'] 
+                                    ?? '',
+                    'zip'      => $shippingAddress['zip'] ?? '',
+                    'phone'    => $shippingAddress['phone'] ?? '',
+                ],
+
+                // ✅ Line Items List
+                'items' => collect($node['lineItems']['edges'] ?? [])
+                    ->map(function ($item) {
+                        return [
+                            'title'    => $item['node']['title'] ?? '',
+                            'quantity' => $item['node']['quantity'] ?? 0,
+                        ];
+                    })->values(),
+
+                'cursor' => $edge['cursor'] ?? null,
+            ];
+        })
+        ->values();
 
         /*
         |--------------------------------------------------------------------------
@@ -1818,6 +1885,7 @@ class OrderController extends Controller
 
                         $tranzoPayload = [
                             'reference_number' => $bookNo,
+                            'order_details'    => 'No Comment',
                             'customer_name'    => $order['name'],
                             'customer_phone'   => $order['phone'],
                             'destination_city' => $order['city'],
