@@ -13,6 +13,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use App\Models\Customer;
 use App\Models\Booking;
+use App\Models\ThirdPartyBooking;
 
 class OrderController extends Controller
 {
