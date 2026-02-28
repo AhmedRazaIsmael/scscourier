@@ -1864,7 +1864,7 @@ class OrderController extends Controller
                         \Log::info('Sending Sonic Request', $sonicPayload);
 
                         $sonicResponse = Http::withHeaders([
-                            'Authorization' => 'YOUR_SONIC_API_KEY',
+                            'Authorization' => 'aWNSR1VFYjBwcnhvRmp2T1RqRWpmOE9nMVNHNGdMVkc5aGp4VEdub29KYnF5WTdFajhKSHhrQ3Nlc214698b61c3af9b9',
                             'Content-Type'  => 'application/json',
                             'Accept'        => 'application/json',
                         ])->post('https://sonic.pk/api/shipment/book', $sonicPayload);
