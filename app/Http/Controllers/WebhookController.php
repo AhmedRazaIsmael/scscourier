@@ -36,38 +36,17 @@ class WebhookController extends Controller
             return response('Unauthorized', 401);
         }
 
-        Log::info('APP_UNINSTALLED Webhook received.', [
-            'payload' => $request->getContent()
-        ]);
-
         $payload = json_decode($request->getContent(), true);
-        $shopDomain = $payload['domain'] ?? $payload['myshopify_domain'] ?? null;
 
-        if (empty($shopDomain)) {
-            return response('Invalid request payload. Missing shop domain.', 400);
+        $shopDomain = $payload['myshopify_domain'] ?? null;
+
+        Log::info('app/uninstalled received', $payload);
+
+        if ($shopDomain) {
+            User::where('shop_domain', $shopDomain)->delete();
         }
 
-        $shop = User::where('name', $shopDomain)->first();
-
-        if (!$shop) {
-            return response('Shop not found.', 404);
-        }
-
-        try {
-            $shop->delete();
-
-            Log::info("Shop record deleted for domain: {$shopDomain}");
-
-            return response('OK', 200);
-
-        } catch (\Exception $e) {
-            Log::error('Error during app uninstallation.', [
-                'shop_domain' => $shopDomain,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response('Server error', 500);
-        }
+        return response('OK', 200);
     }
 
     
@@ -82,9 +61,10 @@ class WebhookController extends Controller
 
         $payload = json_decode($request->getContent(), true);
 
-        Log::info("customers/redact received", $payload);
+        Log::info('customers/redact received', $payload);
 
-        // If you do NOT store Shopify customer data, just return 200
+        // You do not store Shopify customer PII tied to Shopify ID
+        // So nothing to delete
 
         return response()->json(['status' => 'ok'], 200);
     }
@@ -103,16 +83,10 @@ class WebhookController extends Controller
 
         $shopDomain = $payload['shop_domain'] ?? null;
 
-        Log::info("shop/redact received", $payload);
+        Log::info('shop/redact received', $payload);
 
         if ($shopDomain) {
-
-            // Delete users
             User::where('shop_domain', $shopDomain)->delete();
-
-            // If customers and bookings are tied to shop, delete them too
-            Customer::where('shop_domain', $shopDomain)->delete();
-            Booking::where('shop_domain', $shopDomain)->delete();
         }
 
         return response()->json(['status' => 'ok'], 200);
@@ -129,7 +103,10 @@ class WebhookController extends Controller
 
         $payload = json_decode($request->getContent(), true);
 
-        Log::info("customers/data_request received", $payload);
+        Log::info('customers/data_request received', $payload);
+
+        // You do not store Shopify customer data
+        // So return empty response as required by Shopify
 
         return response()->json([
             'data' => []
