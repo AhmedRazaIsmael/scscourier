@@ -18,6 +18,7 @@ use App\Http\Controllers\InvoiceRecoveryController;
 use App\Http\Controllers\DimensionalWeightController;
 use App\Http\Controllers\ShopifyAuthController;
 use App\Http\Controllers\WebhookController;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
