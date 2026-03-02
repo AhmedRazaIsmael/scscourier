@@ -46,6 +46,8 @@ class WebhookController extends Controller
             return response('An error occurred during uninstallation.', 500);
         }
     }
+
+    
     /**
      * Handle the customers/redact webhook.
      */
