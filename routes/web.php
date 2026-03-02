@@ -37,9 +37,17 @@ Route::get('/auth/shopify', [ShopifyAuthController::class, 'redirectToShopify'])
 Route::get('/auth/shopify/callback', [ShopifyAuthController::class, 'handleCallback'])
     ->name('shopify.callback');
 
-Route::post('/webhooks/customers/data_request', [WebhookController::class, 'customerDataRequest']);
-Route::post('/webhooks/customers/redact', [WebhookController::class, 'customerRedact']);
-Route::post('/webhooks/shop/redact', [WebhookController::class, 'shopRedact']);    
+Route::post('/webhooks/app/uninstalled', [WebhookController::class, 'uninstallApp'])
+    ->name('webhooks.app.uninstalled');
+
+Route::post('/webhooks/customers/data_request', [WebhookController::class, 'customerDataRequest'])
+    ->name('webhooks.customers.data_request');
+
+Route::post('/webhooks/customers/redact', [WebhookController::class, 'customerRedact'])
+    ->name('webhooks.customers.redact');
+
+Route::post('/webhooks/shop/redact', [WebhookController::class, 'shopRedact'])
+    ->name('webhooks.shop.redact');
 
 // ----------------------
 // Authenticated Routes

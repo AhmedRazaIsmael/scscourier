@@ -12,12 +12,36 @@ use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
+    private function verifyWebhook(Request $request)
+    {
+        $hmacHeader = $request->header('X-Shopify-Hmac-Sha256');
+
+        if (!$hmacHeader) {
+            return false;
+        }
+
+        $data = $request->getContent();
+        $secret = config('services.shopify.secret');
+
+        $calculatedHmac = base64_encode(
+            hash_hmac('sha256', $data, $secret, true)
+        );
+
+        return hash_equals($hmacHeader, $calculatedHmac);
+    }
+
     public function uninstallApp(Request $request)
     {
-        // Log the incoming webhook to verify it's received
-        Log::info('APP_UNINSTALLED Webhook received.', ['payload' => $request->all()]);
+        if (!$this->verifyWebhook($request)) {
+            return response('Unauthorized', 401);
+        }
 
-        $shopDomain = $request->input('domain');
+        Log::info('APP_UNINSTALLED Webhook received.', [
+            'payload' => $request->getContent()
+        ]);
+
+        $payload = json_decode($request->getContent(), true);
+        $shopDomain = $payload['domain'] ?? $payload['myshopify_domain'] ?? null;
 
         if (empty($shopDomain)) {
             return response('Invalid request payload. Missing shop domain.', 400);
@@ -30,33 +54,23 @@ class WebhookController extends Controller
         }
 
         try {
-            // Here you would add your logic to delete the shop's data.
-            // The $shop->delete() call is correct for deleting the shop record.
             $shop->delete();
-            Log::info("Shop record deleted for domain: {$shopDomain}. App uninstalled.");
 
-            return response('Shop data deleted successfully.', 200);
+            Log::info("Shop record deleted for domain: {$shopDomain}");
+
+            return response('OK', 200);
 
         } catch (\Exception $e) {
             Log::error('Error during app uninstallation.', [
                 'shop_domain' => $shopDomain,
                 'error' => $e->getMessage(),
             ]);
-            return response('An error occurred during uninstallation.', 500);
+
+            return response('Server error', 500);
         }
     }
 
-    private function verifyWebhook(Request $request)
-    {
-        $hmacHeader = $request->header('X-Shopify-Hmac-Sha256');
-        $data = $request->getContent();
-
-        $calculatedHmac = base64_encode(
-            hash_hmac('sha256', $data, config('services.shopify.secret'), true)
-        );
-
-        return hash_equals($hmacHeader, $calculatedHmac);
-    }
+    
     /**
      * Handle the customers/redact webhook.
      */
@@ -102,10 +116,6 @@ class WebhookController extends Controller
         Log::info("shop/redact", $payload);
 
         // Delete all orders/bookings/shipments/customers tied to this shop
-        Shipment::where('shop_domain', $shopDomain)->delete();
-        Booking::where('shop_domain', $shopDomain)->delete();
-        Customer::where('shop_domain', $shopDomain)->delete();
-
         User::where('shop_domain', $shopDomain)->delete();
 
         return response()->json(['status' => 'ok'], 200);

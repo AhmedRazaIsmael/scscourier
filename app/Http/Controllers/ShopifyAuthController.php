@@ -121,6 +121,8 @@ class ShopifyAuthController extends Controller
                 ['shopify_access_token' => $accessToken]
             );
 
+            $this->registerWebhooks($shop, $accessToken);
+
             Cache::put('shopify_installed_' . $shop, true, now()->addMinutes(15));
 
             /*
@@ -134,5 +136,61 @@ class ShopifyAuthController extends Controller
                 $appUrl .= '&host=' . urlencode($host);
             }
             return redirect($appUrl);
+        }
+
+        private function registerWebhooks($shop, $accessToken)
+        {
+            $webhooks = [
+                [
+                    'topic' => 'APP_UNINSTALLED',
+                    'callback' => route('webhooks.app.uninstalled'),
+                ],
+                [
+                    'topic' => 'CUSTOMERS_DATA_REQUEST',
+                    'callback' => route('webhooks.customers.data_request'),
+                ],
+                [
+                    'topic' => 'CUSTOMERS_REDACT',
+                    'callback' => route('webhooks.customers.redact'),
+                ],
+                [
+                    'topic' => 'SHOP_REDACT',
+                    'callback' => route('webhooks.shop.redact'),
+                ],
+            ];
+
+            foreach ($webhooks as $webhook) {
+
+                $response = Http::withHeaders([
+                    'X-Shopify-Access-Token' => $accessToken,
+                    'Content-Type' => 'application/json',
+                ])->post("https://{$shop}/admin/api/2024-01/graphql.json", [
+                    'query' => '
+                        mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $callbackUrl: URL!) {
+                            webhookSubscriptionCreate(
+                                topic: $topic,
+                                webhookSubscription: {
+                                    callbackUrl: $callbackUrl,
+                                    format: JSON
+                                }
+                            ) {
+                                userErrors {
+                                    field
+                                    message
+                                }
+                            }
+                        }
+                    ',
+                    'variables' => [
+                        'topic' => $webhook['topic'],
+                        'callbackUrl' => $webhook['callback'],
+                    ],
+                ]);
+
+                Log::info('Webhook registration response', [
+                    'topic' => $webhook['topic'],
+                    'response' => $response->body()
+                ]);
+            }
         }
 }
