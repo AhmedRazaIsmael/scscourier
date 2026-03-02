@@ -17,6 +17,7 @@ use App\Http\Controllers\ImportInvoiceController;
 use App\Http\Controllers\InvoiceRecoveryController;
 use App\Http\Controllers\DimensionalWeightController;
 use App\Http\Controllers\ShopifyAuthController;
+use App\Http\Controllers\WebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +37,9 @@ Route::get('/auth/shopify', [ShopifyAuthController::class, 'redirectToShopify'])
 Route::get('/auth/shopify/callback', [ShopifyAuthController::class, 'handleCallback'])
     ->name('shopify.callback');
 
+Route::post('/webhooks/customers/data_request', [WebhookController::class, 'customerDataRequest']);
+Route::post('/webhooks/customers/redact', [WebhookController::class, 'customerRedact']);
+Route::post('/webhooks/shop/redact', [WebhookController::class, 'shopRedact']);    
 
 // ----------------------
 // Authenticated Routes
