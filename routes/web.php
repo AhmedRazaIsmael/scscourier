@@ -49,6 +49,19 @@ Route::post('/webhooks/customers/redact', [WebhookController::class, 'customerRe
 Route::post('/webhooks/shop/redact', [WebhookController::class, 'shopRedact'])
     ->name('webhooks.shop.redact');
 
+Route::post('/test-hmac', function (Request $request) {
+    $data = $request->getContent();
+    $secret = config('services.shopify.secret');
+
+    $hmac = base64_encode(
+        hash_hmac('sha256', $data, $secret, true)
+    );
+
+    return response()->json([
+        'generated_hmac' => $hmac
+    ]);
+});    
+
 // ----------------------
 // Authenticated Routes
 // ----------------------
