@@ -139,7 +139,7 @@
    
 
     <!-- RIGHT: Search + User -->
-    <div class="header-actions">
+   <div class="header-actions">
         <div class="search-container d-none d-lg-block">
             <input type="text" class="form-control" id="searchAny" placeholder="Search">
             <i class="bi bi-search"></i>
@@ -155,13 +155,20 @@
             <div class="dropdown-menu dropdown-menu-end shadow-lg p-3">
                 @php
                     $user = Auth::user();
+                    if ($user->is_admin == 1 && $user->userRole == 1) {
+                        $userRoleLabel = 'Admin';
+                    } elseif ($user->is_admin == 0 && $user->userRole == 2) {
+                        $userRoleLabel = 'Customer';
+                    } else {
+                        $userRoleLabel = 'User';
+                    }
                 @endphp
 
                 <div class="user-header d-flex align-items-center mb-3">
                     <img src="{{ asset('dashboard-assets/images/user3.png') }}" class="rounded-circle img-3x me-2" alt="User">
                     <div>
                         <h6 class="mb-0 fw-semibold">{{ $user->name }}</h6>
-                        <small class="text-muted">{{ $user->role->name ?? 'User' }}</small>
+                        <small class="text-muted">{{ $userRoleLabel }}</small>
                     </div>
                 </div>
 

@@ -22,7 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role_id',
+        'userRole',
         'permissions',
         'app_token',
         'is_admin'

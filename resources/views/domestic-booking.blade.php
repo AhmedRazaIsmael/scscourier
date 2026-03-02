@@ -65,6 +65,9 @@
 
                             {{-- Customer & Booking Info --}}
                             <div class="row gx-4 mb-4">
+
+                                {{-- Customer: Admin ko dropdown, Customer ko hidden --}}
+                                @if(auth()->user()->is_admin == 1 && auth()->user()->userRole == 1)
                                 <div class="col-md-4">
                                     <label class="form-label">Customer <span class="text-danger">*</span></label>
                                     <select name="customer_id" id="customerSelect" class="form-select" required>
@@ -76,13 +79,16 @@
                                         @endforeach
                                     </select>
                                 </div>
+                                @else
+                                <input type="hidden" name="customer_id" value="{{ auth()->id() }}">
+                                @endif
 
                                 <div class="col-md-4">
                                     <label class="form-label">Service</label>
                                     <select name="service" class="form-select">
                                         <option disabled selected>Choose...</option>
                                         <option value="overnight " {{ old('service', $booking->service ?? '') == 'overnight ' ? 'selected' : '' }}>Overnight </option>
-                                        <option value="overnet" {{ old('service', $booking->service ?? '') == 'overnet' ? 'selected' : '' }}>Overnet </option>
+                                        <option value="overland" {{ old('service', $booking->service ?? '') == 'overland' ? 'selected' : '' }}>Overland </option>
                                     </select>
                                 </div>
 
@@ -115,51 +121,54 @@
                                     <select name="origin" class="form-select">
                                         <option disabled selected>Choose...</option>
                                         <option disabled selected>Pakistan</option>
-
                                     </select>
                                 </div>
 
                                 <div class="col-md-4">
-                                    <label class="form-label">Destination</label>
-                                    <select name="destination" id="destinationSelect" class="form-control">
-                                        <option value="">-- Select City --</option>
-
-
-                                        <optgroup label="__ Tranzo City __">
+                                    <label>Destination</label>
+                                    <div class="position-relative">
+                                        <input type="text" id="citySearch" class="form-control"
+                                            placeholder="Search city..."
+                                            autocomplete="off"
+                                            value="{{ isset($booking) ? $booking->destination : '' }}">
+                                        <ul id="cityDropdown" style="
+            display:none;
+            position:absolute;
+            top:100%;
+            left:0;
+            right:0;
+            background:#fff;
+            border:1px solid #ccc;
+            border-top:none;
+            max-height:200px;
+            overflow-y:auto;
+            z-index:9999;
+            list-style:none;
+            margin:0;
+            padding:0;
+        ">
                                             @foreach($tranzoCities as $city)
                                             @if(strtolower($city['city_name']) !== 'karachi')
-                                            <option value="{{ $city['city_name'] }}"
-                                                data-city-id=""
-                                                data-source="tranzo">
+                                            <li data-value="{{ $city['city_name'] }}" data-source="tranzo" data-id="{{ $city['id'] ?? '' }}" style="padding:8px 12px; cursor:pointer;">
                                                 {{ $city['city_name'] }}
-                                            </option>
+                                            </li>
                                             @endif
                                             @endforeach
-                                        </optgroup>
-
-                                        <optgroup label="__ Trax City __">
-                                            @php
-                                            $tranzoCityNames = array_map('strtolower', array_column($tranzoCities, 'city_name'));
-                                            @endphp
+                                            @php $tranzoCityNames = array_map('strtolower', array_column($tranzoCities, 'city_name')); @endphp
                                             @foreach($sonicCities as $city)
                                             @if(!in_array(strtolower($city['city_name']), $tranzoCityNames) && strtolower($city['city_name']) !== 'karachi')
-                                            <option value="{{ $city['city_name'] }}"
-                                                data-city-id="{{ $city['id'] }}"
-                                                data-source="sonic">
+                                            <li data-value="{{ $city['city_name'] }}" data-source="sonic" data-id="{{ $city['id'] ?? '' }}" style="padding:8px 12px; cursor:pointer;">
                                                 {{ $city['city_name'] }}
-                                            </option>
+                                            </li>
                                             @endif
                                             @endforeach
-                                        </optgroup>
+                                        </ul>
+                                    </div>
 
-                                    </select>
-
-                                    <input type="hidden" name="consignee_city_id" id="consignee_city_id" value="">
-                                    <input type="hidden" name="destination_source" id="destination_source" value="">
+                                    <input type="hidden" name="destination" id="destination" value="{{ isset($booking) ? $booking->destination : '' }}">
+                                    <input type="hidden" name="consignee_city_id" id="consignee_city_id" value="{{ isset($booking) ? $booking->consignee_city_id : '' }}">
+                                    <input type="hidden" name="destination_source" id="destination_source" value="{{ isset($booking) ? $booking->destination_source : '' }}">
                                 </div>
-
-
-
                             </div>
 
                             {{-- Dimensions & Shipment --}}
@@ -179,11 +188,19 @@
                             </div>
 
                             <div class="row gx-4 mb-4">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <label class="form-label">Pieces</label>
                                     <input type="number" step="any" name="pieces" class="form-control" value="{{ old('pieces', $booking->pieces ?? '') }}">
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
+                                    <label class="form-label">COD Amount</label>
+                                    <input type="number" name="codAmount" class="form-control" value="{{ old('codAmount', $booking->codAmount ?? '') }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Item Detail</label>
+                                    <textarea name="itemDetail" class="form-control" rows="3">{{ old('itemDetail', $booking->itemDetail ?? '') }}</textarea>
+                                </div>
+                                <!-- <div class="col-md-4">
                                     <label class="form-label">Length</label>
                                     <input type="number" step="any" name="length" class="form-control" value="{{ old('length', $booking->length ?? '') }}">
 
@@ -192,7 +209,7 @@
                                     <label class="form-label">Width</label>
                                     <input type="number" step="any" name="width" class="form-control" value="{{ old('width', $booking->width ?? '') }}">
 
-                                </div>
+                                </div> -->
                             </div>
 
                             <!-- <div class="row gx-4 mb-4">
@@ -210,8 +227,8 @@
                                 </div>
                             </div> -->
 
-                            <div class="row gx-4 mb-4">
-                                <!-- <div class="col-md-4">
+                            <!-- <div class="row gx-4 mb-4">
+                                <div class="col-md-4">
                                     <label class="form-label">Arrival Clearance</label>
                                     <select name="arrivalClearance" class="form-select">
                                         <option disabled selected>Choose...</option>
@@ -221,22 +238,13 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                </div> -->
-                                <!-- <div class="col-md-4">
+                                </div>
+                                <div class="col-md-4">
                                     <label class="form-label">Item Content</label>
                                     <input type="text" name="itemContent" class="form-control" value="{{ old('itemContent', $booking->itemContent ?? '') }}">
-                                </div> -->
-                                <div class="col-md-6">
-                                    <label class="form-label">COD Amount</label>
-                                    <input type="number" name="codAmount" class="form-control" value="{{ old('codAmount', $booking->codAmount ?? '') }}">
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Item Detail</label>
-                                    <textarea name="itemDetail" class="form-control" rows="3">{{ old('itemDetail', $booking->itemDetail ?? '') }}</textarea>
-                                </div>
-                            </div>
-
-
+                              
+                            </div> -->
 
                             {{-- Shipper & Consignee --}}
                             <!-- @foreach(['shipper', 'consignee'] as $type)
@@ -276,10 +284,10 @@
                                 </div>
                             </div> -->
 
-                            <div class="row gx-4 mb-4">
+                            <!-- <div class="row gx-4 mb-4"> -->
 
-                                <!-- Territory Select -->
-                                <!-- <div class="col-md-4">
+                            <!-- Territory Select -->
+                            <!-- <div class="col-md-4">
                                     <label class="form-label">Territory</label>
                                     <select name="territory" id="territory" class="form-select">
                                         <option selected disabled>Choose...</option>
@@ -292,8 +300,8 @@
                                     </select>
                                 </div> -->
 
-                                <!-- Sales Person Display -->
-                                <!-- <div class="col-md-4">
+                            <!-- Sales Person Display -->
+                            <!-- <div class="col-md-4">
                                     <label class="form-label">Sales Person</label>
                                     <input type="text" id="salesPersonName" class="form-control"
                                         value="{{ old('salesPersonName', isset($booking) && $booking->salesPerson ? ($users->find($booking->salesPerson)->name ?? '') : '') }}"
@@ -302,16 +310,46 @@
                                         value="{{ old('salesPerson', isset($booking) ? $booking->salesPerson : '') }}">
                                 </div> -->
 
-                                <!-- <div class="col-md-4">
+                            <!-- <div class="col-md-4">
                                     <label class="form-label">Rate Type</label>
                                     <input type="text" name="rateType" class="form-control" value="{{ old('rateType', $booking->rateType ?? '') }}">
                                 </div>
                             </div> -->
 
-                                <div class="text-end">
-                                    <button type="submit" class="btn btn-primary">{{ isset($booking) ? 'Update' : 'Submit' }}</button>
-                                    <a href="{{ route('booking.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                            {{-- Consignee Fields: sirf Customer login par show hongi --}}
+                            @if(auth()->user()->is_admin == 0 && auth()->user()->userRole == 2)
+                            <div class="row gx-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Consignee Company</label>
+                                    <input type="text" name="consigneeCompany" class="form-control" value="{{ old('consigneeCompany', $booking->consigneeCompany ?? '') }}">
                                 </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Consignee Name</label>
+                                    <input type="text" name="consigneeName" class="form-control" value="{{ old('consigneeName', $booking->consigneeName ?? '') }}">
+                                </div>
+                            </div>
+                            <div class="row gx-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Consignee Number</label>
+                                    <input type="text" name="consigneeNumber" class="form-control" value="{{ old('consigneeNumber', $booking->consigneeNumber ?? '') }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Consignee Email</label>
+                                    <input type="email" name="consigneeEmail" class="form-control" value="{{ old('consigneeEmail', $booking->consigneeEmail ?? '') }}">
+                                </div>
+                            </div>
+                            <div class="row gx-4 mb-4">
+                                <div class="col-md-12">
+                                    <label class="form-label">Consignee Address</label>
+                                    <textarea name="consigneeAddress" class="form-control" rows="3">{{ old('consigneeAddress', $booking->consigneeAddress ?? '') }}</textarea>
+                                </div>
+                            </div>
+                            @endif
+
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-primary">{{ isset($booking) ? 'Update' : 'Submit' }}</button>
+                                <a href="{{ route('booking.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                            </div>
                         </form>
 
                     </div>
@@ -322,6 +360,63 @@
 </div>
 @endsection
 @push('scripts')
+
+<script>
+    const citySearch = document.getElementById('citySearch');
+    const cityDropdown = document.getElementById('cityDropdown');
+    const allItems = cityDropdown.querySelectorAll('li');
+
+    citySearch.addEventListener('input', function() {
+        const search = this.value.toLowerCase().trim();
+        let hasVisible = false;
+
+        allItems.forEach(item => {
+            if (item.textContent.toLowerCase().includes(search)) {
+                item.style.display = '';
+                hasVisible = true;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        cityDropdown.style.display = (search.length > 0 && hasVisible) ? 'block' : 'none';
+
+        // Agar search clear ho toh hidden fields bhi clear karo
+        if (search.length === 0) {
+            document.getElementById('destination').value = '';
+            document.getElementById('consignee_city_id').value = '';
+            document.getElementById('destination_source').value = '';
+        }
+    });
+
+    allItems.forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            this.style.background = '#f0f0f0';
+        });
+        item.addEventListener('mouseleave', function() {
+            this.style.background = '#fff';
+        });
+        item.addEventListener('click', function() {
+            const cityName = this.getAttribute('data-value');
+            const source = this.getAttribute('data-source');
+            const cityId = this.getAttribute('data-id');
+
+            citySearch.value = cityName;
+            document.getElementById('destination').value = cityName;
+            document.getElementById('consignee_city_id').value = cityId;
+            document.getElementById('destination_source').value = source;
+
+            cityDropdown.style.display = 'none';
+        });
+    });
+
+    // Bahar click karo toh dropdown band ho
+    document.addEventListener('click', function(e) {
+        if (!citySearch.contains(e.target) && !cityDropdown.contains(e.target)) {
+            cityDropdown.style.display = 'none';
+        }
+    });
+</script>
 <script>
     document.getElementById('destinationSelect').addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];

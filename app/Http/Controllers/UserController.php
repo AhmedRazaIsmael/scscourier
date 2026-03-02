@@ -15,7 +15,6 @@ class UserController extends Controller
         $users = User::paginate(50);
         return view('add-user', compact('users'));
     }
-
     public function store(Request $request)
     {
         $request->validate([
@@ -32,6 +31,8 @@ class UserController extends Controller
             'email'       => $request->email,
             'password'    => Hash::make($request->password),
             'permissions' => $request->permissions ?? [],
+            'userRole'    => 1,
+            'is_admin'    => 1,
         ]);
 
         // ✅ Generate Sanctum token
