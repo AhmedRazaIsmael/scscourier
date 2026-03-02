@@ -82,18 +82,9 @@ class WebhookController extends Controller
 
         $payload = json_decode($request->getContent(), true);
 
-        $customerId = $payload['customer']['id'] ?? null;
-        $shopDomain = $payload['shop_domain'] ?? null;
+        Log::info("customers/redact received", $payload);
 
-        Log::info("customers/redact", $payload);
-
-        Shipment::where('shopify_customer_id', $customerId)
-            ->update([
-                'customer_name' => null,
-                'email' => null,
-                'phone' => null,
-                'delivery_address' => null,
-            ]);
+        // If you do NOT store Shopify customer data, just return 200
 
         return response()->json(['status' => 'ok'], 200);
     }
@@ -111,12 +102,18 @@ class WebhookController extends Controller
         $payload = json_decode($request->getContent(), true);
 
         $shopDomain = $payload['shop_domain'] ?? null;
-        $shopId = $payload['shop_id'] ?? null;
 
-        Log::info("shop/redact", $payload);
+        Log::info("shop/redact received", $payload);
 
-        // Delete all orders/bookings/shipments/customers tied to this shop
-        User::where('shop_domain', $shopDomain)->delete();
+        if ($shopDomain) {
+
+            // Delete users
+            User::where('shop_domain', $shopDomain)->delete();
+
+            // If customers and bookings are tied to shop, delete them too
+            Customer::where('shop_domain', $shopDomain)->delete();
+            Booking::where('shop_domain', $shopDomain)->delete();
+        }
 
         return response()->json(['status' => 'ok'], 200);
     }
@@ -132,16 +129,10 @@ class WebhookController extends Controller
 
         $payload = json_decode($request->getContent(), true);
 
-        $customerId = $payload['customer']['id'] ?? null;
-        $shopDomain = $payload['shop_domain'] ?? null;
-
-        Log::info("customers/data_request", $payload);
-
-        // Fetch all related data for this customer
-        $shipments = Shipment::where('shopify_customer_id', $customerId)->get();
+        Log::info("customers/data_request received", $payload);
 
         return response()->json([
-            'data' => $shipments
+            'data' => []
         ], 200);
     }
 }
