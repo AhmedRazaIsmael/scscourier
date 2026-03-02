@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Shipment;
 use App\Models\Customer;
-use App\Models\CustomerShop;
 use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -47,29 +46,50 @@ class WebhookController extends Controller
         }
     }
 
-    
+    private function verifyWebhook(Request $request)
+    {
+        $hmacHeader = $request->header('X-Shopify-Hmac-Sha256');
+        $data = $request->getContent();
+
+        $calculatedHmac = base64_encode(
+            hash_hmac('sha256', $data, config('services.shopify.secret'), true)
+        );
+
+        return hash_equals($hmacHeader, $calculatedHmac);
+    }
     /**
      * Handle the customers/redact webhook.
      */
     public function customerRedact(Request $request)
     {
-        $payload = $request->processWebhook(['webhook' => 'customers/redact']);
+        if (!$this->verifyWebhook($request)) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-        $shopifyCustomerId = $payload['customer']['id'];
-        $shopDomain = $payload['shop_domain'];
+        $payload = json_decode($request->getContent(), true);
 
-        Log::info("Received customers/redact webhook for customer_id: {$shopifyCustomerId} on shop: {$shopDomain}");
+        $customerId = $payload['customer']['id'] ?? null;
+        $shopDomain = $payload['shop_domain'] ?? null;
 
-        // Anonymize personal data in your shipments table
-        Shipment::where('shopify_customer_id', $shopifyCustomerId)
+        if (!$customerId || !$shopDomain) {
+            return response()->json(['error' => 'Invalid payload'], 400);
+        }
+
+        Log::info("customers/redact received", [
+            'customer_id' => $customerId,
+            'shop' => $shopDomain
+        ]);
+
+        // Anonymize personal data
+        Shipment::where('shopify_customer_id', $customerId)
             ->update([
-                'customer_name' => '',
-                'email' => '',
-                'phone' => '',
-                'delivery_address' => '',
+                'customer_name' => null,
+                'email' => null,
+                'phone' => null,
+                'delivery_address' => null,
             ]);
 
-        return response()->json(['status' => 'success']);
+        return response()->json(['status' => 'success'], 200);
     }
 
     /**
@@ -78,54 +98,48 @@ class WebhookController extends Controller
 
     public function shopRedact(Request $request)
     {
-        // Log the incoming webhook for debugging
-        Log::info('Shop Redact Webhook received.', ['payload' => $request->all()]);
+        if (!$this->verifyWebhook($request)) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-        // Validate the request body
-        $validatedData = $request->validate([
-            'shop_id' => 'required|numeric',
-            'shop_domain' => 'required|string',
+        $payload = json_decode($request->getContent(), true);
+
+        $shopId = $payload['shop_id'] ?? null;
+        $shopDomain = $payload['shop_domain'] ?? null;
+
+        if (!$shopId || !$shopDomain) {
+            return response()->json(['error' => 'Invalid payload'], 400);
+        }
+
+        Log::info("shop/redact received", [
+            'shop_id' => $shopId,
+            'shop_domain' => $shopDomain
         ]);
 
-        $shopId = $validatedData['shop_id'];
-        $shopDomain = $validatedData['shop_domain'];
-
-
-        // Find the shop record in our database
-        // $shop = Shop::where('id', $shopId)->first();
-        $shop = User::where('name', $shopDomain)->first();
-        // if not found then return 401 unauthorized
-        if (!$shop) {
-            return response('Shop not found.', 401);
-        }
-        // if ($shop) {
-        // Log::info("Found shop to redact: {$shop->name}. Starting data deletion.");
-
         try {
-            // Shipment::where('shop_id', $shopId)->delete();
-            // Log::info("Deleted shipments for shop_id: {$shopId}");
+            // Delete related records
+            Shop::where('shop_domain', $shopId)->delete();
 
-            CustomerShop::where('shopify_shop_id', $shopId)->delete();
-            Log::info("Deleted customers records for shop_id: {$shopId}");
-            Log::info("Shop record deleted for shop_id: {$shop->id}. Redaction complete.");
-            $shop->delete();
+            // Delete local shop/user record
+            $user = User::where('shop_domain', $shopDomain)->first();
 
+            if ($user) {
+                $user->delete();
+            }
 
-            return response('Data redacted successfully.', 200);
-        } catch (\Exception $e) {
-            // Log any errors that occur during the deletion process
-            Log::error('Error during shop redaction.', [
-                'shop_id' => $shopId,
-                'error' => $e->getMessage(),
+            Log::info("Shop data fully redacted", [
+                'shop_id' => $shopId
             ]);
-            // Return a server error response
-            return response('An error occurred during redaction.', 500);
+
+            return response()->json(['status' => 'success'], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Error during shop redaction", [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json(['error' => 'Server error'], 500);
         }
-        // } else {
-        //     Log::warning('Shop not found for redaction.', ['shop_id' => $shopId]);
-        //     // Return a not found response if the shop ID doesn't exist
-        //     return response('Shop not found.', 404);
-        // }
     }
 
     /**
@@ -133,18 +147,31 @@ class WebhookController extends Controller
      */
     public function customerDataRequest(Request $request)
     {
-        $payload = $request->processWebhook(['webhook' => 'customers/data_request']);
+        if (!$this->verifyWebhook($request)) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-        $shopifyCustomerId = $payload['customer']['id'];
-        $shopDomain = $payload['shop_domain'];
-        Log::info("Received customers/data_request webhook for customer_id: {$shopifyCustomerId} on shop: {$shopDomain}");
+        $payload = json_decode($request->getContent(), true);
 
-        // Find all data for this customer in your shipments table
-        $shipments = Shipment::where('shopify_customer_id', $shopifyCustomerId)->get();
+        $customerId = $payload['customer']['id'] ?? null;
+        $shopDomain = $payload['shop_domain'] ?? null;
 
-        // Format the data and prepare for sending to Shopify's privacy API
-        Log::info("Customer data found: ", ['data' => $shipments->toArray()]);
+        if (!$customerId || !$shopDomain) {
+            return response()->json(['error' => 'Invalid payload'], 400);
+        }
 
-        return response()->json(['status' => 'success']);
+        Log::info("customers/data_request received", [
+            'customer_id' => $customerId,
+            'shop' => $shopDomain
+        ]);
+
+        $shipments = Shipment::where('shopify_customer_id', $customerId)->get();
+
+        Log::info("Customer data prepared", [
+            'count' => $shipments->count()
+        ]);
+
+        // Shopify expects 200 response
+        return response()->json(['status' => 'success'], 200);
     }
 }
