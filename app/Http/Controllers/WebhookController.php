@@ -63,7 +63,7 @@ class WebhookController extends Controller
     public function customerRedact(Request $request)
     {
         if (!$this->verifyWebhook($request)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([], 401);
         }
 
         $payload = json_decode($request->getContent(), true);
@@ -71,16 +71,8 @@ class WebhookController extends Controller
         $customerId = $payload['customer']['id'] ?? null;
         $shopDomain = $payload['shop_domain'] ?? null;
 
-        if (!$customerId || !$shopDomain) {
-            return response()->json(['error' => 'Invalid payload'], 400);
-        }
+        Log::info("customers/redact", $payload);
 
-        Log::info("customers/redact received", [
-            'customer_id' => $customerId,
-            'shop' => $shopDomain
-        ]);
-
-        // Anonymize personal data
         Shipment::where('shopify_customer_id', $customerId)
             ->update([
                 'customer_name' => null,
@@ -89,7 +81,7 @@ class WebhookController extends Controller
                 'delivery_address' => null,
             ]);
 
-        return response()->json(['status' => 'success'], 200);
+        return response()->json(['status' => 'ok'], 200);
     }
 
     /**
@@ -99,47 +91,24 @@ class WebhookController extends Controller
     public function shopRedact(Request $request)
     {
         if (!$this->verifyWebhook($request)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([], 401);
         }
 
         $payload = json_decode($request->getContent(), true);
 
-        $shopId = $payload['shop_id'] ?? null;
         $shopDomain = $payload['shop_domain'] ?? null;
+        $shopId = $payload['shop_id'] ?? null;
 
-        if (!$shopId || !$shopDomain) {
-            return response()->json(['error' => 'Invalid payload'], 400);
-        }
+        Log::info("shop/redact", $payload);
 
-        Log::info("shop/redact received", [
-            'shop_id' => $shopId,
-            'shop_domain' => $shopDomain
-        ]);
+        // Delete all orders/bookings/shipments/customers tied to this shop
+        Shipment::where('shop_domain', $shopDomain)->delete();
+        Booking::where('shop_domain', $shopDomain)->delete();
+        Customer::where('shop_domain', $shopDomain)->delete();
 
-        try {
-            // Delete related records
-            Shop::where('shop_domain', $shopId)->delete();
+        User::where('shop_domain', $shopDomain)->delete();
 
-            // Delete local shop/user record
-            $user = User::where('shop_domain', $shopDomain)->first();
-
-            if ($user) {
-                $user->delete();
-            }
-
-            Log::info("Shop data fully redacted", [
-                'shop_id' => $shopId
-            ]);
-
-            return response()->json(['status' => 'success'], 200);
-
-        } catch (\Exception $e) {
-            Log::error("Error during shop redaction", [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json(['error' => 'Server error'], 500);
-        }
+        return response()->json(['status' => 'ok'], 200);
     }
 
     /**
@@ -148,7 +117,7 @@ class WebhookController extends Controller
     public function customerDataRequest(Request $request)
     {
         if (!$this->verifyWebhook($request)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json([], 401);
         }
 
         $payload = json_decode($request->getContent(), true);
@@ -156,22 +125,13 @@ class WebhookController extends Controller
         $customerId = $payload['customer']['id'] ?? null;
         $shopDomain = $payload['shop_domain'] ?? null;
 
-        if (!$customerId || !$shopDomain) {
-            return response()->json(['error' => 'Invalid payload'], 400);
-        }
+        Log::info("customers/data_request", $payload);
 
-        Log::info("customers/data_request received", [
-            'customer_id' => $customerId,
-            'shop' => $shopDomain
-        ]);
-
+        // Fetch all related data for this customer
         $shipments = Shipment::where('shopify_customer_id', $customerId)->get();
 
-        Log::info("Customer data prepared", [
-            'count' => $shipments->count()
-        ]);
-
-        // Shopify expects 200 response
-        return response()->json(['status' => 'success'], 200);
+        return response()->json([
+            'data' => $shipments
+        ], 200);
     }
 }
