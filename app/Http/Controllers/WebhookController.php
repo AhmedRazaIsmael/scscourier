@@ -15,11 +15,6 @@ class WebhookController extends Controller
     private function verifyWebhook(Request $request)
     {
         $hmacHeader = $request->header('X-Shopify-Hmac-Sha256');
-
-        if (!$hmacHeader) {
-            return false;
-        }
-
         $data = $request->getContent();
         $secret = config('services.shopify.secret');
 
@@ -27,7 +22,13 @@ class WebhookController extends Controller
             hash_hmac('sha256', $data, $secret, true)
         );
 
-        return hash_equals($hmacHeader, $calculatedHmac);
+        Log::info('HMAC DEBUG', [
+            'header' => $hmacHeader,
+            'calculated' => $calculatedHmac,
+            'raw_body' => $data,
+        ]);
+
+        return hash_equals($hmacHeader ?? '', $calculatedHmac);
     }
 
     public function uninstallApp(Request $request)
