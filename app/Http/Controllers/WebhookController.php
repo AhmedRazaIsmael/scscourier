@@ -55,6 +55,7 @@ class WebhookController extends Controller
      */
     public function customerRedact(Request $request)
     {
+        dd('Webhook reached controller');
         if (!$this->verifyWebhook($request)) {
             return response()->json([], 401);
         }
