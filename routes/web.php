@@ -69,7 +69,19 @@ Route::post('/test-hmac', function (Request $request) {
 Route::middleware(['auth'])->group(function () {
 
     // Dashboard
-    Route::get('/', [BookingController::class, 'dashboard'])->name('dashboard');
+    Route::get('/', function (Request $request) {
+
+        $shop = $request->query('shop');
+        $host = $request->query('host');
+
+        return redirect(
+            'https://scs-green-pi.vercel.app/?shop=' .
+            urlencode($shop) .
+            '&host=' .
+            urlencode($host)
+        );
+    });
+    // Route::get('/', [BookingController::class, 'dashboard'])->name('dashboard');
     Route::get('/dashboard', [BookingController::class, 'dashboard'])->name('dashboard');
 
     // Static Views
