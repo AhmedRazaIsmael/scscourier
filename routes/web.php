@@ -66,9 +66,8 @@ Route::post('/test-hmac', function (Request $request) {
 // ----------------------
 // Authenticated Routes
 // ----------------------
-Route::middleware(['auth'])->group(function () {
 
-    // Dashboard
+// Dashboard
     Route::get('/', function (Request $request) {
 
         $shop = $request->query('shop');
@@ -81,6 +80,9 @@ Route::middleware(['auth'])->group(function () {
             urlencode($host)
         );
     });
+Route::middleware(['auth'])->group(function () {
+
+    
     // Route::get('/', [BookingController::class, 'dashboard'])->name('dashboard');
     Route::get('/dashboard', [BookingController::class, 'dashboard'])->name('dashboard');
 
