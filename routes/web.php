@@ -80,10 +80,31 @@ Route::post('/test-hmac', function (Request $request) {
     //         urlencode($host)
     //     );
     // });
+
+    Route::get('/', function (Request $request) {
+
+        // If Shopify embedded app request
+        if ($request->has('shop') && $request->has('host')) {
+
+            $shop = $request->query('shop');
+            $host = $request->query('host');
+
+            return redirect(
+                'https://scs-green-pi.vercel.app/?shop=' .
+                urlencode($shop) .
+                '&host=' .
+                urlencode($host)
+            );
+        }
+
+        // Otherwise load your normal backend dashboard
+        return view('dashboard');
+    });
+    
 Route::middleware(['auth'])->group(function () {
 
     
-    Route::get('/', [BookingController::class, 'dashboard'])->name('dashboard');
+    // Route::get('/', [BookingController::class, 'dashboard'])->name('dashboard');
     Route::get('/dashboard', [BookingController::class, 'dashboard'])->name('dashboard');
 
     // Static Views
