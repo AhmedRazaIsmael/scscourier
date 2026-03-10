@@ -1821,7 +1821,7 @@ class OrderController extends Controller
                     continue;
                 }
 
-                $orderNo = ltrim($order['orderNumber'], '#');
+                $orderNo = ltrim($order['order_number'], '#');
                 $cityName = strtolower(trim($city));
 
                 if (Booking::where('orderNo', $orderNo)->exists()) {
