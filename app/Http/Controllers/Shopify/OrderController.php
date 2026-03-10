@@ -1837,7 +1837,7 @@ class OrderController extends Controller
 
                 $bookNo = 'AB' . date('y') . date('m') . '01' . str_pad(rand(0,9999),4,'0',STR_PAD_LEFT);
 
-                $paymentMode = strtolower($order['financialStatus']) === 'paid'
+                $paymentMode = strtolower($order['financial_status']) === 'PAID'
                     ? 'non_cod'
                     : 'cod';
 
@@ -1853,7 +1853,7 @@ class OrderController extends Controller
                     'paymentMode'        => $paymentMode,
                     'destination'        => $city,
                     'destinationCountry' => 'Pakistan',
-                    'invoiceValue'       => $order['cod'],
+                    'invoiceValue'       => $order['amount'],
                     'weight'             => $order['kg'] ?? 1,
                     'pieces'             => 1,
                     'orderNo'            => $orderNo,
@@ -1898,7 +1898,7 @@ class OrderController extends Controller
                             'customer_phone'   => $phone,
                             'destination_city' => $city,
                             'delivery_address' => $address,
-                            'cod_amount'       => (int)$order['cod'],
+                            'cod_amount'       => (int)$order['amount'],
                             'booking_weight'   => (float)($order['kg'] ?? 1),
                             'total_items'      => 1,
                             'ds_shipment_type'     => 1,
@@ -1977,8 +1977,8 @@ class OrderController extends Controller
 
                             $sonicPayload = [
                                 'service_type_id'            => 1,
-                                'amount'                     => (int)$order['cod'] ?? 0,
-                                'parcel_value'               => (int)$order['cod'] ?? 0,
+                                'amount'                     => (int)$order['amount'] ?? 0,
+                                'parcel_value'               => (int)$order['amount'] ?? 0,
                                 'pickup_address_id'          => 617025,
                                 'information_display'        => 0,
                                 'consignee_city_id'          => $sonicCityId,
@@ -1990,7 +1990,7 @@ class OrderController extends Controller
                                 'item_description'       => "No Comment",
                                 'item_quantity'              => 1,
                                 'item_insurance'             => 0,
-                                'item_price'                 => (int)$order['cod'],
+                                'item_price'                 => (int)$order['amount'],
                                 'pickup_date'                => now()->toDateString(),
                                 'estimated_weight'           => (float)($order['kg'] ?? 1),
                                 'payment_mode_id'            => 1,
