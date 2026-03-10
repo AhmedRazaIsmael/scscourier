@@ -1806,13 +1806,23 @@ class OrderController extends Controller
                 \Log::info('------------------------------');
                 \Log::info('Processing Order', $order);
 
-                if (empty($order['address']) || empty($order['city'])) {
-                    \Log::warning('Skipping - Missing address or city');
+                $shipping = $order['shipping'] ?? [];
+
+                $address = $shipping['address1'] ?? null;
+                $city    = $shipping['city'] ?? null;
+                $name    = $shipping['name'] ?? null;
+                $phone   = $shipping['phone'] ?? null;
+
+                if (empty($address) || empty($city)) {
+                    \Log::warning('Skipping - Missing address or city', [
+                        'address' => $address,
+                        'city' => $city
+                    ]);
                     continue;
                 }
 
                 $orderNo = ltrim($order['orderNumber'], '#');
-                $cityName = strtolower(trim($order['city']));
+                $cityName = strtolower(trim($city));
 
                 if (Booking::where('orderNo', $orderNo)->exists()) {
                     \Log::warning('Duplicate booking skipped', ['order_no' => $orderNo]);
@@ -1841,15 +1851,15 @@ class OrderController extends Controller
                     'customer_id'        => $customerId,
                     'bookingType'        => 'domestic',
                     'paymentMode'        => $paymentMode,
-                    'destination'        => $order['city'],
+                    'destination'        => $city,
                     'destinationCountry' => 'Pakistan',
                     'invoiceValue'       => $order['cod'],
                     'weight'             => $order['kg'] ?? 1,
                     'pieces'             => 1,
                     'orderNo'            => $orderNo,
-                    'consigneeName'      => $order['name'],
-                    'consigneeNumber'    => $order['phone'],
-                    'consigneeAddress'   => $order['address'],
+                    'consigneeName'      => $name,
+                    'consigneeNumber'    => $phone,
+                    'consigneeAddress'   => $address,
                     'bookNo'             => $bookNo,
                     'bookDate'           => now()->toDateString(),
                 ]);
@@ -1884,10 +1894,10 @@ class OrderController extends Controller
                         $tranzoPayload = [
                             'reference_number' => $bookNo,
                             'order_details'    => 'No Comment',
-                            'customer_name'    => $order['name'],
-                            'customer_phone'   => $order['phone'],
-                            'destination_city' => $order['city'],
-                            'delivery_address' => $order['address'],
+                            'customer_name'    => $name,
+                            'customer_phone'   => $phone,
+                            'destination_city' => $city,
+                            'delivery_address' => $address,
                             'cod_amount'       => (int)$order['cod'],
                             'booking_weight'   => (float)($order['kg'] ?? 1),
                             'total_items'      => 1,
@@ -1955,7 +1965,7 @@ class OrderController extends Controller
                             $cities = $sonicResponse->json()['cities'] ?? $sonicResponse->json();
 
                             foreach ($cities as $city) {
-                                $name = strtolower(trim($city['name'] ?? $city['city_name'] ?? ''));
+                                $name = strtolower(trim($name ?? $city['city_name'] ?? ''));
                                 if ($name === $cityName) {
                                     $sonicCityId = $city['id'] ?? $city['city_id'];
                                     break;
@@ -1972,9 +1982,9 @@ class OrderController extends Controller
                                 'pickup_address_id'          => 617025,
                                 'information_display'        => 0,
                                 'consignee_city_id'          => $sonicCityId,
-                                'consignee_name'             => $order['name'],
-                                'consignee_address'          => $order['address'],
-                                'consignee_phone_number_1'   => $order['phone'],
+                                'consignee_name'             => $name,
+                                'consignee_address'          => $address,
+                                'consignee_phone_number_1'   => $phone,
                                 'order_id'                   => $bookNo,
                                 'item_product_type_id'       => 1,
                                 'item_description'       => "No Comment",
