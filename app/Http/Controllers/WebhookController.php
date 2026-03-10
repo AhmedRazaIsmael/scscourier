@@ -44,7 +44,15 @@ class WebhookController extends Controller
         Log::info('app/uninstalled received', $payload);
 
         if ($shopDomain) {
-            User::where('shop_domain', $shopDomain)->delete();
+            $shop = Shop::where('shop_domain', $shopDomain)->delete();
+            $user = User::where('shop_domain', $shopDomain)->first();
+
+            if ($user) {
+                $user->update([
+                    'shop_domain' => null,
+                    'shopify_access_token' => null,
+                ]);
+            }
         }
 
         return response('OK', 200);
